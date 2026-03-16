@@ -4,280 +4,509 @@ package api
 
 import (
 	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
 
 	api "github.com/BiliGO/biz/model/api"
+	"github.com/BiliGO/biz/mw"
+	"github.com/BiliGO/biz/service"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
+func fail(c *app.RequestContext, code int, msg string) {
+	c.JSON(code, map[string]interface{}{"code": code, "message": msg})
+}
+
 // Register .
 // @router /user/register [POST]
 func Register(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.RegisterReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
 		return
 	}
 
-	resp := new(api.RegisterResp)
+	result, err := service.Register(ctx, req.Username, req.Password)
+	if err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"code":          0,
+		"user_id":       result.UserID,
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+	})
 }
 
 // Login .
 // @router /user/login [POST]
 func Login(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.LoginReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
 		return
 	}
 
-	resp := new(api.LoginResp)
+	result, err := service.Login(ctx, req.Username, req.Password)
+	if err != nil {
+		fail(c, consts.StatusUnauthorized, err.Error())
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"code":          0,
+		"user_id":       result.UserID,
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+	})
 }
 
 // GetUserInfo .
 // @router /user/info [GET]
 func GetUserInfo(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.UserInfoReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
 		return
 	}
 
-	resp := new(api.UserInfoResp)
+	// 优先用 query 参数中的 user_id，若无则用 JWT 中的当前用户
+	var targetID int64
+	if req.UserID != 0 {
+		targetID = req.UserID
+	} else {
+		uid, _ := c.Get(mw.CtxUserIDKey)
+		targetID, _ = uid.(int64)
+	}
+	if targetID == 0 {
+		fail(c, consts.StatusBadRequest, "user_id required")
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	info, err := service.GetUserInfo(ctx, targetID)
+	if err != nil {
+		fail(c, consts.StatusNotFound, err.Error())
+		return
+	}
+
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"code": 0,
+		"user": map[string]interface{}{
+			"id":              info.ID,
+			"username":        info.Username,
+			"avatar_url":      info.AvatarURL,
+			"follower_count":  info.FollowerCount,
+			"following_count": info.FollowingCount,
+			"created_at":      info.CreatedAt,
+			"updated_at":      info.UpdatedAt,
+		},
+	})
 }
 
 // UploadAvatar .
 // @router /user/avatar/upload [PUT]
 func UploadAvatar(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.UploadAvatarReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+	if userID == 0 {
+		fail(c, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	resp := new(api.UploadAvatarResp)
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		fail(c, consts.StatusBadRequest, "avatar file required")
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	// 保存到本地 uploads/avatars/
+	dir := "uploads/avatars"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fail(c, consts.StatusInternalServerError, "failed to create upload dir")
+		return
+	}
+	ext := filepath.Ext(file.Filename)
+	filename := fmt.Sprintf("%d%s", userID, ext)
+	savePath := filepath.Join(dir, filename)
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		fail(c, consts.StatusInternalServerError, "failed to save file")
+		return
+	}
+
+	avatarURL := "/" + filepath.ToSlash(savePath)
+	if err := service.UpdateAvatar(ctx, userID, avatarURL); err != nil {
+		fail(c, consts.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"code":       0,
+		"avatar_url": avatarURL,
+	})
+}
+
+// RefreshToken .
+// @router /user/refresh [POST]
+func RefreshToken(ctx context.Context, c *app.RequestContext) {
+	refreshToken := string(c.GetHeader("X-Refresh-Token"))
+	if refreshToken == "" {
+		fail(c, http.StatusUnauthorized, "refresh token required")
+		return
+	}
+
+	secret := os.Getenv("JWT_SECRET")
+	claims, err := service.ParseRefreshToken(refreshToken, secret)
+	if err != nil {
+		fail(c, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	accessToken, newRefresh, err := service.RefreshTokens(ctx, claims.UserID)
+	if err != nil {
+		fail(c, consts.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(consts.StatusOK, map[string]interface{}{
+		"code":          0,
+		"user_id":       strconv.FormatInt(claims.UserID, 10),
+		"access_token":  accessToken,
+		"refresh_token": newRefresh,
+	})
 }
 
 // PublishVideo .
 // @router /video/publish [POST]
 func PublishVideo(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.PublishVideoReq
-	err = c.BindAndValidate(&req)
+	log.Println("开始处理视频发布请求")
+	defer log.Println("视频发布请求处理完成")
+
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+	log.Printf("用户ID: %d", userID)
+
+	title := string(c.PostForm("title"))
+	description := string(c.PostForm("description"))
+	log.Printf("视频标题: %s, 描述: %s", title, description)
+
+	const (
+		maxVideoSize = 500 * 1024 * 1024
+		maxCoverSize = 10 * 1024 * 1024
+	)
+
+	log.Println("开始获取视频文件")
+	videoFile, err := c.FormFile("video")
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		log.Printf("获取视频文件失败: %v", err)
+		fail(c, consts.StatusBadRequest, "video file required")
+		return
+	}
+	log.Printf("视频文件: %s, 大小: %d", videoFile.Filename, videoFile.Size)
+
+	if videoFile.Size > maxVideoSize {
+		log.Printf("视频文件过大: %d > %d", videoFile.Size, maxVideoSize)
+		fail(c, consts.StatusBadRequest, fmt.Sprintf("video file too large, max size is %dMB", maxVideoSize/(1024*1024)))
 		return
 	}
 
-	resp := new(api.PublishVideoResp)
+	videoDir := "uploads/videos"
+	log.Printf("创建视频目录: %s", videoDir)
+	if err := os.MkdirAll(videoDir, 0755); err != nil {
+		log.Printf("创建视频目录失败: %v", err)
+		fail(c, consts.StatusInternalServerError, "failed to create video upload dir")
+		return
+	}
+	videoExt := filepath.Ext(videoFile.Filename)
+	videoFilename := fmt.Sprintf("%d_%d%s", userID, time.Now().UnixNano(), videoExt)
+	videoSavePath := filepath.Join(videoDir, videoFilename)
+	log.Printf("保存视频文件: %s", videoSavePath)
+	if err := c.SaveUploadedFile(videoFile, videoSavePath); err != nil {
+		log.Printf("保存视频文件失败: %v", err)
+		fail(c, consts.StatusInternalServerError, "failed to save video file")
+		return
+	}
+	videoURL := "/" + filepath.ToSlash(videoSavePath)
+	log.Printf("视频URL: %s", videoURL)
 
-	c.JSON(consts.StatusOK, resp)
+	var coverURL string
+	coverFile, err := c.FormFile("cover")
+	if err == nil {
+		log.Printf("封面文件: %s, 大小: %d", coverFile.Filename, coverFile.Size)
+		if coverFile.Size > maxCoverSize {
+			log.Printf("封面文件过大: %d > %d", coverFile.Size, maxCoverSize)
+			fail(c, consts.StatusBadRequest, fmt.Sprintf("cover file too large, max size is %dMB", maxCoverSize/(1024*1024)))
+			return
+		}
+
+		coverDir := "uploads/covers"
+		log.Printf("创建封面目录: %s", coverDir)
+		if err := os.MkdirAll(coverDir, 0755); err != nil {
+			log.Printf("创建封面目录失败: %v", err)
+			fail(c, consts.StatusInternalServerError, "failed to create cover upload dir")
+			return
+		}
+		coverExt := filepath.Ext(coverFile.Filename)
+		coverFilename := fmt.Sprintf("%d_%d%s", userID, time.Now().UnixNano(), coverExt)
+		coverSavePath := filepath.Join(coverDir, coverFilename)
+		log.Printf("保存封面文件: %s", coverSavePath)
+		if err := c.SaveUploadedFile(coverFile, coverSavePath); err != nil {
+			log.Printf("保存封面文件失败: %v", err)
+			fail(c, consts.StatusInternalServerError, "failed to save cover file")
+			return
+		}
+		coverURL = "/" + filepath.ToSlash(coverSavePath)
+		log.Printf("封面URL: %s", coverURL)
+	} else {
+		log.Println("未提供封面文件")
+	}
+
+	log.Println("开始调用服务层发布视频")
+	item, err := service.PublishVideo(ctx, userID, title, description, videoURL, coverURL)
+	if err != nil {
+		log.Printf("发布视频失败: %v", err)
+		fail(c, consts.StatusBadRequest, err.Error())
+		return
+	}
+	log.Println("视频发布成功")
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "video": item})
 }
 
 // GetVideoList .
 // @router /video/list [GET]
 func GetVideoList(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.VideoListReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	userIDStr := c.Query("user_id")
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	var targetID int64
+	if userIDStr != "" {
+		targetID, _ = strconv.ParseInt(userIDStr, 10, 64)
+	} else {
+		uid, _ := c.Get(mw.CtxUserIDKey)
+		targetID, _ = uid.(int64)
+	}
+	if targetID == 0 {
+		fail(c, consts.StatusBadRequest, "user_id required")
 		return
 	}
 
-	resp := new(api.VideoListResp)
-
-	c.JSON(consts.StatusOK, resp)
+	items, total, err := service.GetVideoList(ctx, targetID, pageNum, pageSize)
+	if err != nil {
+		fail(c, consts.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "videos": items})
 }
 
 // GetPopularVideos .
 // @router /video/popular [GET]
 func GetPopularVideos(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.PopularVideosReq
-	err = c.BindAndValidate(&req)
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	items, total, err := service.GetPopularVideos(ctx, pageNum, pageSize)
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		fail(c, consts.StatusInternalServerError, err.Error())
 		return
 	}
-
-	resp := new(api.PopularVideosResp)
-
-	c.JSON(consts.StatusOK, resp)
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "videos": items})
 }
 
 // SearchVideo .
 // @router /video/search [POST]
 func SearchVideo(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.SearchVideoReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	var body struct {
+		Keyword  string `json:"keyword"`
+		PageNum  int    `json:"page_num"`
+		PageSize int    `json:"page_size"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
 		return
 	}
-
-	resp := new(api.SearchVideoResp)
-
-	c.JSON(consts.StatusOK, resp)
+	if body.Keyword == "" {
+		fail(c, consts.StatusBadRequest, "keyword required")
+		return
+	}
+	items, total, err := service.SearchVideo(ctx, body.Keyword, body.PageNum, body.PageSize)
+	if err != nil {
+		fail(c, consts.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "videos": items})
 }
 
 // LikeAction .
 // @router /like/action [POST]
 func LikeAction(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.LikeActionReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+
+	var body struct {
+		VideoID    int64 `json:"video_id"`
+		ActionType int   `json:"action_type"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
 		return
 	}
-
-	resp := new(api.LikeActionResp)
-
-	c.JSON(consts.StatusOK, resp)
+	if err := service.LikeAction(ctx, userID, body.VideoID, body.ActionType); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0})
 }
 
 // GetLikeList .
 // @router /like/list [GET]
 func GetLikeList(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.LikeListReq
-	err = c.BindAndValidate(&req)
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	items, total, err := service.GetLikeList(ctx, userID, pageNum, pageSize)
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		fail(c, consts.StatusInternalServerError, err.Error())
 		return
 	}
-
-	resp := new(api.LikeListResp)
-
-	c.JSON(consts.StatusOK, resp)
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "videos": items})
 }
 
 // PublishComment .
 // @router /comment/publish [POST]
 func PublishComment(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.PublishCommentReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+
+	var body struct {
+		VideoID int64  `json:"video_id"`
+		Content string `json:"content"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
 		return
 	}
-
-	resp := new(api.PublishCommentResp)
-
-	c.JSON(consts.StatusOK, resp)
+	item, err := service.PublishComment(ctx, userID, body.VideoID, body.Content)
+	if err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "comment": item})
 }
 
 // GetCommentList .
 // @router /comment/list [GET]
 func GetCommentList(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.CommentListReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	videoIDStr := c.Query("video_id")
+	videoID, _ := strconv.ParseInt(videoIDStr, 10, 64)
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	if videoID == 0 {
+		fail(c, consts.StatusBadRequest, "video_id required")
 		return
 	}
-
-	resp := new(api.CommentListResp)
-
-	c.JSON(consts.StatusOK, resp)
+	items, total, err := service.GetCommentList(ctx, videoID, pageNum, pageSize)
+	if err != nil {
+		fail(c, consts.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "comments": items})
 }
 
 // DeleteComment .
 // @router /comment/delete [DELETE]
 func DeleteComment(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.DeleteCommentReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+
+	commentIDStr := c.Query("comment_id")
+	commentID, _ := strconv.ParseInt(commentIDStr, 10, 64)
+	if commentID == 0 {
+		fail(c, consts.StatusBadRequest, "comment_id required")
 		return
 	}
-
-	resp := new(api.DeleteCommentResp)
-
-	c.JSON(consts.StatusOK, resp)
+	if err := service.DeleteComment(ctx, userID, commentID); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0})
 }
 
 // RelationAction .
 // @router /relation/action [POST]
 func RelationAction(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.RelationActionReq
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+
+	var body struct {
+		ToUserID   int64 `json:"to_user_id"`
+		ActionType int   `json:"action_type"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
 		return
 	}
-
-	resp := new(api.RelationActionResp)
-
-	c.JSON(consts.StatusOK, resp)
+	if err := service.RelationAction(ctx, userID, body.ToUserID, body.ActionType); err != nil {
+		fail(c, consts.StatusBadRequest, err.Error())
+		return
+	}
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0})
 }
 
 // GetFollowingList .
 // @router /following/list [GET]
 func GetFollowingList(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.FollowingListReq
-	err = c.BindAndValidate(&req)
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	items, total, err := service.GetFollowingList(ctx, userID, pageNum, pageSize)
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		fail(c, consts.StatusInternalServerError, err.Error())
 		return
 	}
-
-	resp := new(api.FollowingListResp)
-
-	c.JSON(consts.StatusOK, resp)
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "users": items})
 }
 
 // GetFollowerList .
 // @router /follower/list [GET]
 func GetFollowerList(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.FollowerListReq
-	err = c.BindAndValidate(&req)
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	items, total, err := service.GetFollowerList(ctx, userID, pageNum, pageSize)
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		fail(c, consts.StatusInternalServerError, err.Error())
 		return
 	}
-
-	resp := new(api.FollowerListResp)
-
-	c.JSON(consts.StatusOK, resp)
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "users": items})
 }
 
 // GetFriendsList .
 // @router /friends/list [GET]
 func GetFriendsList(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.FriendsListReq
-	err = c.BindAndValidate(&req)
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
+
+	items, total, err := service.GetFriendsList(ctx, userID, pageNum, pageSize)
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		fail(c, consts.StatusInternalServerError, err.Error())
 		return
 	}
-
-	resp := new(api.FriendsListResp)
-
-	c.JSON(consts.StatusOK, resp)
+	c.JSON(consts.StatusOK, map[string]interface{}{"code": 0, "total": total, "users": items})
 }

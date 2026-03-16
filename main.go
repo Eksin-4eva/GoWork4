@@ -1,14 +1,20 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/BiliGO/biz/dal/mysql"
-	"github.com/joho/godotenv"
+	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/hertz-contrib/cors"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -24,7 +30,46 @@ func main() {
 		log.Fatalf("mysql init failed: %v", err)
 	}
 
-	h := server.Default()
+	h := server.Default(
+		server.WithMaxRequestBodySize(500*1024*1024),
+		server.WithHostPorts("127.0.0.1:8888"),
+	)
+
+	// 添加 CORS 中间件
+	h.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Refresh-Token"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
+	// 配置静态文件服务 - 使用自定义处理函数
+	uploadsDir := "D:/bG/BiliGO-/uploads"
+	h.GET("/uploads/*filepath", func(c context.Context, ctx *app.RequestContext) {
+		filepathStr := ctx.Param("filepath")
+		// 清理路径，防止目录遍历攻击
+		filepathStr = strings.TrimPrefix(filepathStr, "/")
+		fullPath := filepath.Join(uploadsDir, filepathStr)
+
+		// 安全检查：确保请求的文件在uploads目录内
+		absPath, _ := filepath.Abs(fullPath)
+		absUploadsDir, _ := filepath.Abs(uploadsDir)
+		if !strings.HasPrefix(absPath, absUploadsDir) {
+			ctx.String(consts.StatusForbidden, "Access denied")
+			return
+		}
+
+		// 检查文件是否存在
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			ctx.String(consts.StatusNotFound, "File not found: "+filepathStr)
+			return
+		}
+
+		// 提供文件服务
+		ctx.File(fullPath)
+	})
+
 	register(h)
 	h.Spin()
 }

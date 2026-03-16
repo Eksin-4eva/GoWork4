@@ -4,6 +4,7 @@ package main
 
 import (
 	handler "github.com/BiliGO/biz/handler"
+	apihandler "github.com/BiliGO/biz/handler/api"
 	"github.com/cloudwego/hertz/pkg/app/server"
 )
 
@@ -11,5 +12,6 @@ import (
 func customizedRegister(r *server.Hertz) {
 	r.GET("/ping", handler.Ping)
 
-	// your code ...
+	// 双 Token 刷新接口（无需 JWT 鉴权）
+	r.POST("/user/refresh", apihandler.RefreshToken)
 }

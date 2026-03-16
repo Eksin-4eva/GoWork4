@@ -11,14 +11,14 @@ func rootMw() []app.HandlerFunc { return nil }
 
 // ==================== 无需鉴权 ====================
 
-func _registerMw() []app.HandlerFunc  { return nil }
-func _loginMw() []app.HandlerFunc     { return nil }
+func _registerMw() []app.HandlerFunc { return nil }
+func _loginMw() []app.HandlerFunc    { return nil }
 
 // 视频浏览类接口无需登录
-func _getvideolistMw() []app.HandlerFunc    { return nil }
+func _getvideolistMw() []app.HandlerFunc     { return nil }
 func _getpopularvideosMw() []app.HandlerFunc { return nil }
-func _searchvideoMw() []app.HandlerFunc     { return nil }
-func _getcommentlistMw() []app.HandlerFunc  { return nil }
+func _searchvideoMw() []app.HandlerFunc      { return nil }
+func _getcommentlistMw() []app.HandlerFunc   { return nil }
 
 // ==================== 需要 JWT 鉴权 ====================
 
@@ -29,8 +29,8 @@ func _getuserinfoMw() []app.HandlerFunc  { return jwt() }
 func _avatarMw() []app.HandlerFunc       { return nil }
 func _uploadavatarMw() []app.HandlerFunc { return jwt() }
 
-func _videoMw() []app.HandlerFunc       { return nil }
-func _publishvideoMw() []app.HandlerFunc { return jwt() }
+func _videoMw() []app.HandlerFunc { return nil }
+func _publishvideoMw() []app.HandlerFunc { return []app.HandlerFunc{mw.MaxBodySize(500 * 1024 * 1024), mw.JWTAuth()} }
 
 func _likeMw() []app.HandlerFunc        { return nil }
 func _likeactionMw() []app.HandlerFunc  { return jwt() }
