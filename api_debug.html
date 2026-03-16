@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BiliGO API 调试工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .main-content {
+            display: flex;
+            height: calc(100vh - 200px);
+            min-height: 600px;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #f8f9fa;
+            border-right: 1px solid #e9ecef;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .sidebar-section-title {
+            padding: 15px 20px;
+            font-weight: 600;
+            color: #495057;
+            background: #e9ecef;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .api-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .api-item:hover {
+            background: #e9ecef;
+            border-left-color: #667eea;
+        }
+
+        .api-item.active {
+            background: #e7f3ff;
+            border-left-color: #667eea;
+        }
+
+        .method {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .method.get { background: #28a745; color: white; }
+        .method.post { background: #007bff; color: white; }
+        .method.put { background: #ffc107; color: #212529; }
+        .method.delete { background: #dc3545; color: white; }
+
+        .api-path {
+            font-size: 13px;
+            color: #495057;
+            font-family: 'Courier New', monospace;
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .api-title {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #212529;
+        }
+
+        .api-description {
+            color: #6c757d;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #495057;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 18px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-input[type="file"] {
+            padding: 8px;
+        }
+
+        textarea.form-input {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .response-area {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .response-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.success { background: #d4edda; color: #155724; }
+        .status-badge.error { background: #f8d7da; color: #721c24; }
+
+        .response-time {
+            color: #6c757d;
+            font-size: 13px;
+        }
+
+        .response-body {
+            background: #212529;
+            color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .token-section {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .token-section-title {
+            font-weight: 600;
+            color: #856404;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .token-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 BiliGO API 调试工具</h1>
+            <p>基于 CloudWeGo Hertz 框架的视频社交平台 API 接口调试</p>
+        </div>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">用户相关</div>
+                    <div class="api-item" data-api="register">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/user/register</span>
+                    </div>
+                    <div class="api-item" data-api="login">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/user/login</span>
+                    </div>
+                    <div class="api-item" data-api="userInfo">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/user/info</span>
+                    </div>
+                    <div class="api-item" data-api="uploadAvatar">
+                        <span class="method put">PUT</span>
+                        <span class="api-path">/user/avatar/upload</span>
+                    </div>
+                    <div class="api-item" data-api="refreshToken">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/user/refresh</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">视频相关</div>
+                    <div class="api-item" data-api="publishVideo">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/video/publish</span>
+                    </div>
+                    <div class="api-item" data-api="videoList">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/video/list</span>
+                    </div>
+                    <div class="api-item" data-api="popularVideos">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/video/popular</span>
+                    </div>
+                    <div class="api-item" data-api="searchVideo">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/video/search</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">点赞相关</div>
+                    <div class="api-item" data-api="likeAction">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/like/action</span>
+                    </div>
+                    <div class="api-item" data-api="likeList">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/like/list</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">评论相关</div>
+                    <div class="api-item" data-api="publishComment">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/comment/publish</span>
+                    </div>
+                    <div class="api-item" data-api="commentList">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/comment/list</span>
+                    </div>
+                    <div class="api-item" data-api="deleteComment">
+                        <span class="method delete">DELETE</span>
+                        <span class="api-path">/comment/delete</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">关注相关</div>
+                    <div class="api-item" data-api="relationAction">
+                        <span class="method post">POST</span>
+                        <span class="api-path">/relation/action</span>
+                    </div>
+                    <div class="api-item" data-api="followingList">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/following/list</span>
+                    </div>
+                    <div class="api-item" data-api="followerList">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/follower/list</span>
+                    </div>
+                    <div class="api-item" data-api="friendsList">
+                        <span class="method get">GET</span>
+                        <span class="api-path">/friends/list</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-area" id="contentArea">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📡</div>
+                    <h3>选择一个 API 接口开始调试</h3>
+                    <p>点击左侧的 API 接口来查看详情和发送请求</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:8888';
+        let accessToken = localStorage.getItem('accessToken') || '';
+        let refreshToken = localStorage.getItem('refreshToken') || '';
+
+        const apiConfigs = {
+            register: {
+                title: '用户注册',
+                description: '创建新用户账号',
+                method: 'POST',
+                path: '/user/register',
+                needAuth: false,
+                fields: [
+                    { name: 'username', label: '用户名', type: 'text', required: true },
+                    { name: 'password', label: '密码', type: 'password', required: true }
+                ]
+            },
+            login: {
+                title: '用户登录',
+                description: '使用用户名和密码登录',
+                method: 'POST',
+                path: '/user/login',
+                needAuth: false,
+                fields: [
+                    { name: 'username', label: '用户名', type: 'text', required: true },
+                    { name: 'password', label: '密码', type: 'password', required: true }
+                ]
+            },
+            userInfo: {
+                title: '获取用户信息',
+                description: '获取指定用户的详细信息',
+                method: 'GET',
+                path: '/user/info',
+                needAuth: true,
+                fields: [
+                    { name: 'user_id', label: '用户ID（可选，不填则获取当前用户）', type: 'number', required: false }
+                ]
+            },
+            uploadAvatar: {
+                title: '上传头像',
+                description: '上传用户头像图片',
+                method: 'PUT',
+                path: '/user/avatar/upload',
+                needAuth: true,
+                fields: [
+                    { name: 'avatar', label: '头像文件', type: 'file', required: true }
+                ]
+            },
+            refreshToken: {
+                title: '刷新令牌',
+                description: '使用刷新令牌获取新的访问令牌',
+                method: 'POST',
+                path: '/user/refresh',
+                needAuth: false,
+                fields: []
+            },
+            publishVideo: {
+                title: '发布视频',
+                description: '上传并发布新视频（视频最大500MB，封面最大10MB）',
+                method: 'POST',
+                path: '/video/publish',
+                needAuth: true,
+                fields: [
+                    { name: 'title', label: '视频标题', type: 'text', required: true },
+                    { name: 'description', label: '视频描述', type: 'textarea', required: false },
+                    { name: 'cover', label: '封面图片（可选）', type: 'file', required: false },
+                    { name: 'video', label: '视频文件', type: 'file', required: true }
+                ]
+            },
+            videoList: {
+                title: '获取视频列表',
+                description: '获取指定用户的视频列表',
+                method: 'GET',
+                path: '/video/list',
+                needAuth: true,
+                fields: [
+                    { name: 'user_id', label: '用户ID（可选，不填则获取当前用户）', type: 'number', required: false },
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            },
+            popularVideos: {
+                title: '获取热门视频',
+                description: '获取热门视频列表',
+                method: 'GET',
+                path: '/video/popular',
+                needAuth: false,
+                fields: [
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            },
+            searchVideo: {
+                title: '搜索视频',
+                description: '根据关键词搜索视频',
+                method: 'POST',
+                path: '/video/search',
+                needAuth: false,
+                fields: [
+                    { name: 'keyword', label: '搜索关键词', type: 'text', required: true },
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            },
+            likeAction: {
+                title: '点赞操作',
+                description: '点赞或取消点赞视频',
+                method: 'POST',
+                path: '/like/action',
+                needAuth: true,
+                fields: [
+                    { name: 'video_id', label: '视频ID', type: 'number', required: true },
+                    { name: 'action_type', label: '操作类型（1-点赞，2-取消点赞）', type: 'number', required: true }
+                ]
+            },
+            likeList: {
+                title: '获取点赞列表',
+                description: '获取当前用户点赞的视频列表',
+                method: 'GET',
+                path: '/like/list',
+                needAuth: true,
+                fields: [
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            },
+            publishComment: {
+                title: '发布评论',
+                description: '为指定视频发布评论',
+                method: 'POST',
+                path: '/comment/publish',
+                needAuth: true,
+                fields: [
+                    { name: 'video_id', label: '视频ID', type: 'number', required: true },
+                    { name: 'content', label: '评论内容', type: 'textarea', required: true }
+                ]
+            },
+            commentList: {
+                title: '获取评论列表',
+                description: '获取指定视频的评论列表',
+                method: 'GET',
+                path: '/comment/list',
+                needAuth: false,
+                fields: [
+                    { name: 'video_id', label: '视频ID', type: 'number', required: true },
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            },
+            deleteComment: {
+                title: '删除评论',
+                description: '删除指定的评论',
+                method: 'DELETE',
+                path: '/comment/delete',
+                needAuth: true,
+                fields: [
+                    { name: 'comment_id', label: '评论ID', type: 'number', required: true }
+                ]
+            },
+            relationAction: {
+                title: '关注操作',
+                description: '关注或取消关注用户',
+                method: 'POST',
+                path: '/relation/action',
+                needAuth: true,
+                fields: [
+                    { name: 'to_user_id', label: '目标用户ID', type: 'number', required: true },
+                    { name: 'action_type', label: '操作类型（1-关注，2-取消关注）', type: 'number', required: true }
+                ]
+            },
+            followingList: {
+                title: '获取关注列表',
+                description: '获取当前用户的关注列表',
+                method: 'GET',
+                path: '/following/list',
+                needAuth: true,
+                fields: [
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            },
+            followerList: {
+                title: '获取粉丝列表',
+                description: '获取当前用户的粉丝列表',
+                method: 'GET',
+                path: '/follower/list',
+                needAuth: true,
+                fields: [
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            },
+            friendsList: {
+                title: '获取好友列表',
+                description: '获取当前用户的好友列表（互相关注）',
+                method: 'GET',
+                path: '/friends/list',
+                needAuth: true,
+                fields: [
+                    { name: 'page_num', label: '页码', type: 'number', default: '1', required: false },
+                    { name: 'page_size', label: '每页数量', type: 'number', default: '10', required: false }
+                ]
+            }
+        };
+
+        function renderApiConfig(apiName) {
+            const config = apiConfigs[apiName];
+            if (!config) return;
+
+            const contentArea = document.getElementById('contentArea');
+            
+            let fieldsHtml = '';
+            config.fields.forEach(field => {
+                if (field.type === 'textarea') {
+                    fieldsHtml += `
+                        <div class="form-group">
+                            <label class="form-label">${field.label}${field.required ? ' *' : ''}</label>
+                            <textarea class="form-input" name="${field.name}" ${field.required ? 'required' : ''}></textarea>
+                        </div>
+                    `;
+                } else if (field.type === 'file') {
+                    const maxSize = field.name === 'video' ? 500 : field.name === 'cover' ? 10 : 0;
+                    const maxSizeText = maxSize > 0 ? `（最大${maxSize}MB）` : '';
+                    fieldsHtml += `
+                        <div class="form-group">
+                            <label class="form-label">${field.label}${field.required ? ' *' : ''}${maxSizeText}</label>
+                            <input type="file" class="form-input" name="${field.name}" ${field.required ? 'required' : ''} data-max-size="${maxSize}">
+                        </div>
+                    `;
+                } else {
+                    fieldsHtml += `
+                        <div class="form-group">
+                            <label class="form-label">${field.label}${field.required ? ' *' : ''}</label>
+                            <input type="${field.type}" class="form-input" name="${field.name}" value="${field.default || ''}" ${field.required ? 'required' : ''}>
+                        </div>
+                    `;
+                }
+            });
+
+            let tokenSection = '';
+            if (config.needAuth) {
+                tokenSection = `
+                    <div class="token-section">
+                        <div class="token-section-title">🔐 需要认证</div>
+                        <div class="token-inputs">
+                            <div>
+                                <label class="form-label">Access Token</label>
+                                <input type="text" class="form-input" id="accessToken" value="${accessToken}" placeholder="请输入 Access Token">
+                            </div>
+                            <div>
+                                <label class="form-label">Refresh Token</label>
+                                <input type="text" class="form-input" id="refreshToken" value="${refreshToken}" placeholder="请输入 Refresh Token">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            contentArea.innerHTML = `
+                <h2 class="api-title">${config.title}</h2>
+                <p class="api-description">${config.description}</p>
+                
+                <div class="section">
+                    <div class="section-title">请求信息</div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 13px;">
+                        <strong>方法:</strong> <span style="color: #007bff;">${config.method}</span><br>
+                        <strong>路径:</strong> ${config.path}<br>
+                        <strong>完整URL:</strong> ${BASE_URL}${config.path}
+                    </div>
+                </div>
+
+                ${tokenSection}
+
+                <div class="section">
+                    <div class="section-title">请求参数</div>
+                    <form id="apiForm">
+                        ${fieldsHtml}
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <span>发送请求</span>
+                        </button>
+                    </form>
+                </div>
+
+                <div class="response-area hidden" id="responseArea">
+                    <div class="response-header">
+                        <div class="response-status">
+                            <span class="status-badge" id="statusBadge">200</span>
+                            <span class="response-time" id="responseTime">耗时: 0ms</span>
+                        </div>
+                        <button class="btn btn-secondary" onclick="copyResponse()" style="padding: 6px 12px; font-size: 12px;">
+                            复制响应
+                        </button>
+                    </div>
+                    <div class="response-body" id="responseBody"></div>
+                </div>
+            `;
+
+            const form = document.getElementById('apiForm');
+            
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const fileInputs = form.querySelectorAll('input[type="file"]');
+                for (const fileInput of fileInputs) {
+                    const maxSize = parseInt(fileInput.dataset.maxSize || '0', 10);
+                    if (maxSize > 0 && fileInput.files.length > 0) {
+                        const file = fileInput.files[0];
+                        const maxSizeBytes = maxSize * 1024 * 1024;
+                        if (file.size > maxSizeBytes) {
+                            alert(`文件 "${file.name}" 太大，最大允许 ${maxSize}MB`);
+                            return;
+                        }
+                    }
+                }
+                
+                await sendRequest(config);
+            });
+        }
+
+        async function sendRequest(config) {
+            const form = document.getElementById('apiForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const responseArea = document.getElementById('responseArea');
+            const responseBody = document.getElementById('responseBody');
+            const statusBadge = document.getElementById('statusBadge');
+            const responseTime = document.getElementById('responseTime');
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span><span>发送中...</span>';
+            responseArea.classList.add('hidden');
+
+            const startTime = Date.now();
+            let url = BASE_URL + config.path;
+            let options = {
+                method: config.method,
+                headers: {}
+            };
+
+            if (config.needAuth) {
+                const tokenInput = document.getElementById('accessToken');
+                accessToken = tokenInput.value;
+                if (accessToken) {
+                    options.headers['Authorization'] = `Bearer ${accessToken}`;
+                }
+            }
+
+            const formData = new FormData(form);
+            const hasFile = Array.from(formData.entries()).some(([key, value]) => value instanceof File);
+
+            if (hasFile) {
+                options.body = formData;
+                delete options.headers['Content-Type'];
+            } else {
+                const data = {};
+                formData.forEach((value, key) => {
+                    if (value && value.trim() !== '') {
+                        const field = config.fields.find(f => f.name === key);
+                        if (field && field.type === 'number') {
+                            data[key] = parseInt(value, 10);
+                        } else {
+                            data[key] = value;
+                        }
+                    }
+                });
+
+                if (config.method === 'GET' || config.method === 'DELETE') {
+                    const params = new URLSearchParams(data);
+                    if (params.toString()) {
+                        url += '?' + params.toString();
+                    }
+                } else {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(data);
+                }
+            }
+
+            if (config.path === '/user/refresh') {
+                options.headers['X-Refresh-Token'] = refreshToken;
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                const result = await response.json();
+
+                responseArea.classList.remove('hidden');
+                statusBadge.textContent = response.status;
+                statusBadge.className = 'status-badge ' + (response.ok ? 'success' : 'error');
+                responseTime.textContent = `耗时: ${duration}ms`;
+                responseBody.textContent = JSON.stringify(result, null, 2);
+
+                if (config.path === '/user/login' || config.path === '/user/register') {
+                    if (result.access_token) {
+                        accessToken = result.access_token;
+                        localStorage.setItem('accessToken', accessToken);
+                    }
+                    if (result.refresh_token) {
+                        refreshToken = result.refresh_token;
+                        localStorage.setItem('refreshToken', refreshToken);
+                    }
+                }
+
+                if (config.path === '/user/refresh') {
+                    if (result.access_token) {
+                        accessToken = result.access_token;
+                        localStorage.setItem('accessToken', accessToken);
+                    }
+                    if (result.refresh_token) {
+                        refreshToken = result.refresh_token;
+                        localStorage.setItem('refreshToken', refreshToken);
+                    }
+                }
+
+            } catch (error) {
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+
+                responseArea.classList.remove('hidden');
+                statusBadge.textContent = 'Error';
+                statusBadge.className = 'status-badge error';
+                responseTime.textContent = `耗时: ${duration}ms`;
+                responseBody.textContent = JSON.stringify({ error: error.message }, null, 2);
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>发送请求</span>';
+        }
+
+        function copyResponse() {
+            const responseBody = document.getElementById('responseBody');
+            navigator.clipboard.writeText(responseBody.textContent).then(() => {
+                alert('响应已复制到剪贴板');
+            });
+        }
+
+        document.querySelectorAll('.api-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.api-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                const apiName = item.dataset.api;
+                renderApiConfig(apiName);
+            });
+        });
+    </script>
+</body>
+</html>
