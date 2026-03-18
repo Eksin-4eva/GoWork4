@@ -1,0 +1,35 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8888:8888"
+    environment:
+      - MYSQL_DSN=root:Jack12345@tcp(mysql:3306)/biligo?charset=utf8mb4&parseTime=True&loc=Local
+      - MYSQL_MAX_OPEN_CONNS=100
+      - MYSQL_MAX_IDLE_CONNS=10
+      - JWT_SECRET=your_jwt_secret_change_this_in_production
+      - UPLOADS_DIR=/app/uploads
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=Jack12345
+      - MYSQL_DATABASE=biligo
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pJack12345"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  uploads:
+  mysql_data:
