@@ -8,7 +8,7 @@
 - **ORM**: GORM + gorm/gen
 - **数据库**: MySQL
 - **认证**: JWT（access token + refresh token）
-- **语言**: Go
+- **语言**: Golang
 
 ## 项目结构
 
