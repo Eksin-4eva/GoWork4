@@ -39,3 +39,30 @@ func GetMFAQrcode(ctx context.Context, c *app.RequestContext) {
 		"qrcode": result.Qrcode,
 	}))
 }
+
+// BindMFA .
+// @router /auth/mfa/bind [POST]
+func BindMFA(ctx context.Context, c *app.RequestContext) {
+	uid, _ := c.Get(mw.CtxUserIDKey)
+	userID, _ := uid.(int64)
+	if userID == 0 {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeUnauthorized, "unauthorized"))
+		return
+	}
+
+	code := string(c.FormValue("code"))
+	secret := string(c.FormValue("secret"))
+
+	if code == "" || secret == "" {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, "code and secret are required"))
+		return
+	}
+
+	err := service.BindMFA(ctx, userID, code, secret)
+	if err != nil {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, err.Error()))
+		return
+	}
+
+	c.JSON(consts.StatusOK, response.Success(nil))
+}

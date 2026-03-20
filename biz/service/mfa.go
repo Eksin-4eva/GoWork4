@@ -73,3 +73,19 @@ func GetUserByID(ctx context.Context, userID int64) (*model.User, error) {
 	u := q.User
 	return u.WithContext(ctx).Where(u.ID.Eq(userID)).First()
 }
+
+func BindMFA(ctx context.Context, userID int64, code, secret string) error {
+	valid := totp.Validate(code, secret)
+	if !valid {
+		return fmt.Errorf("invalid mfa code")
+	}
+
+	q := query.Use(mysql.DB)
+	u := q.User
+	_, err := u.WithContext(ctx).Where(u.ID.Eq(userID)).UpdateSimple(u.MFASecret.Value(secret))
+	if err != nil {
+		return fmt.Errorf("save mfa secret failed: %w", err)
+	}
+
+	return nil
+}

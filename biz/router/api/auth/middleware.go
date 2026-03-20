@@ -12,3 +12,4 @@ func rootMw() []app.HandlerFunc { return nil }
 func _authMw() []app.HandlerFunc         { return nil }
 func _mfaMw() []app.HandlerFunc          { return nil }
 func _getmfaqrcodeMw() []app.HandlerFunc { return []app.HandlerFunc{mw.JWTAuth()} }
+func _bindmfaMw() []app.HandlerFunc      { return []app.HandlerFunc{mw.JWTAuth()} }
