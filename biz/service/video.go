@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/BiliGO/biz/dal/model"
@@ -27,14 +29,32 @@ type VideoItem struct {
 	UpdatedAt    string
 }
 
+func getMinioURL(storedURL string) string {
+	if storedURL == "" {
+		return ""
+	}
+	if strings.HasPrefix(storedURL, "http://") || strings.HasPrefix(storedURL, "https://") {
+		return storedURL
+	}
+	endpoint := os.Getenv("MINIO_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "localhost:9000"
+	}
+	bucket := os.Getenv("MINIO_BUCKET")
+	if bucket == "" {
+		bucket = "biligo"
+	}
+	return fmt.Sprintf("http://%s/%s/%s", endpoint, bucket, storedURL)
+}
+
 func videoToItem(v *model.Video) VideoItem {
 	return VideoItem{
 		ID:           strconv.FormatInt(v.ID, 10),
 		UserID:       strconv.FormatInt(v.UserID, 10),
 		Title:        v.Title,
 		Description:  v.Description,
-		VideoURL:     v.VideoURL,
-		CoverURL:     v.CoverURL,
+		VideoURL:     getMinioURL(v.VideoURL),
+		CoverURL:     getMinioURL(v.CoverURL),
 		ViewCount:    v.ViewCount,
 		LikeCount:    v.LikeCount,
 		CommentCount: v.CommentCount,

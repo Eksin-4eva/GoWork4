@@ -28,7 +28,7 @@ struct VideoListReq {
 
 struct VideoListResp {
     1: common.BaseResp base
-    2: list<common.Video> videos
+    2: list<common.Video> items
     3: i64 total
 }
 
@@ -39,7 +39,7 @@ struct PopularVideosReq {
 
 struct PopularVideosResp {
     1: common.BaseResp base
-    2: list<common.Video> videos
+    2: list<common.Video> items
     3: i64 total
 }
 
@@ -51,7 +51,7 @@ struct SearchVideoReq {
 
 struct SearchVideoResp {
     1: common.BaseResp base
-    2: list<common.Video> videos
+    2: list<common.Video> items
     3: i64 total
 }
 

@@ -262,7 +262,7 @@ func GetVideoList(ctx context.Context, c *app.RequestContext) {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, err.Error()))
 		return
 	}
-	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "videos": items}))
+	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "items": items}))
 }
 
 // GetPopularVideos .
@@ -276,7 +276,7 @@ func GetPopularVideos(ctx context.Context, c *app.RequestContext) {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, err.Error()))
 		return
 	}
-	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "videos": items}))
+	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "items": items}))
 }
 
 // SearchVideo .
@@ -300,7 +300,7 @@ func SearchVideo(ctx context.Context, c *app.RequestContext) {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, err.Error()))
 		return
 	}
-	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "videos": items}))
+	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "items": items}))
 }
 
 // LikeAction .
@@ -310,14 +310,28 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 	userID, _ := uid.(int64)
 
 	var body struct {
-		VideoID    int64 `json:"video_id"`
-		ActionType int   `json:"action_type"`
+		VideoID    *int64 `json:"video_id"`
+		CommentID  *int64 `json:"comment_id"`
+		ActionType int    `json:"action_type"`
 	}
 	if err := c.BindJSON(&body); err != nil {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, err.Error()))
 		return
 	}
-	if err := service.LikeAction(ctx, userID, body.VideoID, body.ActionType); err != nil {
+
+	if body.VideoID == nil && body.CommentID == nil {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, "video_id or comment_id required"))
+		return
+	}
+
+	var err error
+	if body.VideoID != nil {
+		err = service.LikeVideo(ctx, userID, *body.VideoID, body.ActionType)
+	} else {
+		err = service.LikeComment(ctx, userID, *body.CommentID, body.ActionType)
+	}
+
+	if err != nil {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, err.Error()))
 		return
 	}
@@ -327,8 +341,12 @@ func LikeAction(ctx context.Context, c *app.RequestContext) {
 // GetLikeList .
 // @router /like/list [GET]
 func GetLikeList(ctx context.Context, c *app.RequestContext) {
-	uid, _ := c.Get(mw.CtxUserIDKey)
-	userID, _ := uid.(int64)
+	userIDStr := c.Query("user_id")
+	userID, _ := strconv.ParseInt(userIDStr, 10, 64)
+	if userID == 0 {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, "user_id required"))
+		return
+	}
 	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
@@ -337,7 +355,7 @@ func GetLikeList(ctx context.Context, c *app.RequestContext) {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, err.Error()))
 		return
 	}
-	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "videos": items}))
+	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "items": items}))
 }
 
 // PublishComment .
@@ -347,14 +365,29 @@ func PublishComment(ctx context.Context, c *app.RequestContext) {
 	userID, _ := uid.(int64)
 
 	var body struct {
-		VideoID int64  `json:"video_id"`
-		Content string `json:"content"`
+		VideoID   *int64 `json:"video_id"`
+		CommentID *int64 `json:"comment_id"`
+		Content   string `json:"content"`
 	}
 	if err := c.BindJSON(&body); err != nil {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, err.Error()))
 		return
 	}
-	item, err := service.PublishComment(ctx, userID, body.VideoID, body.Content)
+
+	if body.VideoID == nil && body.CommentID == nil {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, "video_id or comment_id required"))
+		return
+	}
+
+	var videoID int64
+	var parentID int64
+	if body.CommentID != nil {
+		parentID = *body.CommentID
+	} else {
+		videoID = *body.VideoID
+	}
+
+	item, err := service.PublishComment(ctx, userID, videoID, parentID, body.Content)
 	if err != nil {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, err.Error()))
 		return
@@ -366,20 +399,24 @@ func PublishComment(ctx context.Context, c *app.RequestContext) {
 // @router /comment/list [GET]
 func GetCommentList(ctx context.Context, c *app.RequestContext) {
 	videoIDStr := c.Query("video_id")
-	videoID, _ := strconv.ParseInt(videoIDStr, 10, 64)
+	commentIDStr := c.Query("comment_id")
 	pageNum, _ := strconv.Atoi(c.DefaultQuery("page_num", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
 
-	if videoID == 0 {
-		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, "video_id required"))
+	videoID, _ := strconv.ParseInt(videoIDStr, 10, 64)
+	parentID, _ := strconv.ParseInt(commentIDStr, 10, 64)
+
+	if videoID == 0 && parentID == 0 {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, "video_id or comment_id required"))
 		return
 	}
-	items, total, err := service.GetCommentList(ctx, videoID, pageNum, pageSize)
+
+	items, total, err := service.GetCommentList(ctx, videoID, parentID, pageNum, pageSize)
 	if err != nil {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, err.Error()))
 		return
 	}
-	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "comments": items}))
+	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "items": items}))
 }
 
 // DeleteComment .

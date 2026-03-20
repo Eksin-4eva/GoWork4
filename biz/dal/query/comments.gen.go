@@ -32,6 +32,8 @@ func newComment(db *gorm.DB, opts ...gen.DOOption) comment {
 	_comment.UserID = field.NewInt64(tableName, "user_id")
 	_comment.Content = field.NewString(tableName, "content")
 	_comment.ParentID = field.NewInt64(tableName, "parent_id")
+	_comment.LikeCount = field.NewInt64(tableName, "like_count")
+	_comment.ChildCount = field.NewInt64(tableName, "child_count")
 	_comment.CreatedAt = field.NewTime(tableName, "created_at")
 	_comment.UpdatedAt = field.NewTime(tableName, "updated_at")
 
@@ -43,14 +45,16 @@ func newComment(db *gorm.DB, opts ...gen.DOOption) comment {
 type comment struct {
 	commentDo commentDo
 
-	ALL       field.Asterisk
-	ID        field.Int64
-	VideoID   field.Int64
-	UserID    field.Int64
-	Content   field.String
-	ParentID  field.Int64
-	CreatedAt field.Time
-	UpdatedAt field.Time
+	ALL        field.Asterisk
+	ID         field.Int64
+	VideoID    field.Int64
+	UserID     field.Int64
+	Content    field.String
+	ParentID   field.Int64
+	LikeCount  field.Int64
+	ChildCount field.Int64
+	CreatedAt  field.Time
+	UpdatedAt  field.Time
 
 	fieldMap map[string]field.Expr
 }
@@ -72,6 +76,8 @@ func (c *comment) updateTableName(table string) *comment {
 	c.UserID = field.NewInt64(table, "user_id")
 	c.Content = field.NewString(table, "content")
 	c.ParentID = field.NewInt64(table, "parent_id")
+	c.LikeCount = field.NewInt64(table, "like_count")
+	c.ChildCount = field.NewInt64(table, "child_count")
 	c.CreatedAt = field.NewTime(table, "created_at")
 	c.UpdatedAt = field.NewTime(table, "updated_at")
 
@@ -98,12 +104,14 @@ func (c *comment) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (c *comment) fillFieldMap() {
-	c.fieldMap = make(map[string]field.Expr, 7)
+	c.fieldMap = make(map[string]field.Expr, 9)
 	c.fieldMap["id"] = c.ID
 	c.fieldMap["video_id"] = c.VideoID
 	c.fieldMap["user_id"] = c.UserID
 	c.fieldMap["content"] = c.Content
 	c.fieldMap["parent_id"] = c.ParentID
+	c.fieldMap["like_count"] = c.LikeCount
+	c.fieldMap["child_count"] = c.ChildCount
 	c.fieldMap["created_at"] = c.CreatedAt
 	c.fieldMap["updated_at"] = c.UpdatedAt
 }

@@ -1,8 +1,5 @@
 namespace go api
 
-// ==================== 基础类型定义 ====================
-
-// 用户基础信息
 struct User {
     1: i64 id
     2: string username
@@ -13,7 +10,6 @@ struct User {
     7: string updated_at
 }
 
-// 视频信息
 struct Video {
     1: i64 id
     2: i64 user_id
@@ -29,19 +25,19 @@ struct Video {
     12: User author
 }
 
-// 评论信息
 struct Comment {
     1: i64 id
     2: i64 video_id
     3: i64 user_id
     4: string content
     5: i64 parent_id
-    6: string created_at
-    7: string updated_at
-    8: User author
+    6: i64 like_count
+    7: i64 child_count
+    8: string created_at
+    9: string updated_at
+    10: User author
 }
 
-// 关注关系
 struct Relation {
     1: i64 id
     2: i64 user_id
@@ -51,7 +47,6 @@ struct Relation {
     6: string updated_at
 }
 
-// 通用响应
 struct BaseResp {
     1: i32 code
     2: string message

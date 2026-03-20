@@ -48,5 +48,6 @@ func autoMigrate(db *gorm.DB) error {
 		&model.Comment{},
 		&model.Favorite{},
 		&model.Relation{},
+		&model.CommentLike{},
 	)
 }

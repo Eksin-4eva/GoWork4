@@ -36,7 +36,7 @@ func _publishvideoMw() []app.HandlerFunc {
 
 func _likeMw() []app.HandlerFunc        { return nil }
 func _likeactionMw() []app.HandlerFunc  { return jwt() }
-func _getlikelistMw() []app.HandlerFunc { return jwt() }
+func _getlikelistMw() []app.HandlerFunc { return nil }
 
 func _commentMw() []app.HandlerFunc        { return nil }
 func _publishcommentMw() []app.HandlerFunc { return jwt() }
