@@ -30,9 +30,18 @@ func main() {
 		log.Fatalf("mysql init failed: %v", err)
 	}
 
+	host := os.Getenv("SERVER_HOST")
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8888"
+	}
+
 	h := server.Default(
 		server.WithMaxRequestBodySize(500*1024*1024),
-		server.WithHostPorts("127.0.0.1:8888"),
+		server.WithHostPorts(host+":"+port),
 	)
 
 	// 添加 CORS 中间件
@@ -45,7 +54,10 @@ func main() {
 	}))
 
 	// 配置静态文件服务 - 使用自定义处理函数
-	uploadsDir := "D:/bG/BiliGO-/uploads"
+	uploadsDir := os.Getenv("UPLOADS_DIR")
+	if uploadsDir == "" {
+		uploadsDir = "/app/uploads"
+	}
 	h.GET("/uploads/*filepath", func(c context.Context, ctx *app.RequestContext) {
 		filepathStr := ctx.Param("filepath")
 		// 清理路径，防止目录遍历攻击

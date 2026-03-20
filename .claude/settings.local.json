@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//etc/docker/**)",
+      "Read(//c/ProgramData/Docker/config/**)"
+    ]
+  }
+}
