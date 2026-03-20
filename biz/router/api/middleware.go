@@ -30,7 +30,9 @@ func _avatarMw() []app.HandlerFunc       { return nil }
 func _uploadavatarMw() []app.HandlerFunc { return jwt() }
 
 func _videoMw() []app.HandlerFunc { return nil }
-func _publishvideoMw() []app.HandlerFunc { return []app.HandlerFunc{mw.MaxBodySize(500 * 1024 * 1024), mw.JWTAuth()} }
+func _publishvideoMw() []app.HandlerFunc {
+	return []app.HandlerFunc{mw.MaxBodySize(500 * 1024 * 1024), mw.JWTAuth()}
+}
 
 func _likeMw() []app.HandlerFunc        { return nil }
 func _likeactionMw() []app.HandlerFunc  { return jwt() }

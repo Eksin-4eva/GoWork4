@@ -32,6 +32,9 @@ Thumbs.db
 .env
 .env.local
 
+# Claude
+.claude/
+
 # Uploads folder - 用户上传的文件不应提交到GitHub
 /uploads/*
 !/uploads/.gitkeep

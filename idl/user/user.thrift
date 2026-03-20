@@ -22,8 +22,8 @@ struct LoginReq {
 }
 
 struct LoginResp {
-    1: common.BaseResp base
-    2: i64 user_id
+    1: common.BaseResp base 
+    2: i64 user_id 
     3: string access_token
     4: string refresh_token
     5: common.User user

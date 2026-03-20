@@ -31,6 +31,7 @@ func newUser(db *gorm.DB, opts ...gen.DOOption) user {
 	_user.Username = field.NewString(tableName, "username")
 	_user.PasswordHash = field.NewString(tableName, "password_hash")
 	_user.AvatarURL = field.NewString(tableName, "avatar_url")
+	_user.MFASecret = field.NewString(tableName, "mfa_secret")
 	_user.FollowerCount = field.NewInt64(tableName, "follower_count")
 	_user.FollowingCount = field.NewInt64(tableName, "following_count")
 	_user.CreatedAt = field.NewTime(tableName, "created_at")
@@ -49,6 +50,7 @@ type user struct {
 	Username       field.String
 	PasswordHash   field.String
 	AvatarURL      field.String
+	MFASecret      field.String
 	FollowerCount  field.Int64
 	FollowingCount field.Int64
 	CreatedAt      field.Time
@@ -73,6 +75,7 @@ func (u *user) updateTableName(table string) *user {
 	u.Username = field.NewString(table, "username")
 	u.PasswordHash = field.NewString(table, "password_hash")
 	u.AvatarURL = field.NewString(table, "avatar_url")
+	u.MFASecret = field.NewString(table, "mfa_secret")
 	u.FollowerCount = field.NewInt64(table, "follower_count")
 	u.FollowingCount = field.NewInt64(table, "following_count")
 	u.CreatedAt = field.NewTime(table, "created_at")
@@ -101,11 +104,12 @@ func (u *user) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 }
 
 func (u *user) fillFieldMap() {
-	u.fieldMap = make(map[string]field.Expr, 8)
+	u.fieldMap = make(map[string]field.Expr, 9)
 	u.fieldMap["id"] = u.ID
 	u.fieldMap["username"] = u.Username
 	u.fieldMap["password_hash"] = u.PasswordHash
 	u.fieldMap["avatar_url"] = u.AvatarURL
+	u.fieldMap["mfa_secret"] = u.MFASecret
 	u.fieldMap["follower_count"] = u.FollowerCount
 	u.fieldMap["following_count"] = u.FollowingCount
 	u.fieldMap["created_at"] = u.CreatedAt
