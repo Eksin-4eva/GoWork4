@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BiliGO/biz/dal/minio"
 	"github.com/BiliGO/biz/dal/mysql"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
@@ -28,6 +29,14 @@ func main() {
 		ConnMaxLifetime: time.Hour,
 	}); err != nil {
 		log.Fatalf("mysql init failed: %v", err)
+	}
+
+	minioCfg := minio.GetConfigFromEnv()
+	if minioCfg.Endpoint != "" {
+		if err := minio.Init(minioCfg); err != nil {
+			log.Fatalf("minio init failed: %v", err)
+		}
+		log.Println("minio initialized successfully")
 	}
 
 	host := os.Getenv("SERVER_HOST")

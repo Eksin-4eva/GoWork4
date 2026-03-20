@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
-	"time"
 
+	"github.com/BiliGO/biz/dal/minio"
 	api "github.com/BiliGO/biz/model/api"
 	"github.com/BiliGO/biz/mw"
 	"github.com/BiliGO/biz/pkg/response"
@@ -120,20 +119,12 @@ func UploadAvatar(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	dir := "uploads/avatars"
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to create upload dir"))
-		return
-	}
-	ext := filepath.Ext(file.Filename)
-	filename := fmt.Sprintf("%d%s", userID, ext)
-	savePath := filepath.Join(dir, filename)
-	if err := c.SaveUploadedFile(file, savePath); err != nil {
-		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to save file"))
+	avatarURL, err := minio.UploadMultipartFile(ctx, "avatars", file)
+	if err != nil {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to upload avatar to storage"))
 		return
 	}
 
-	avatarURL := "/" + filepath.ToSlash(savePath)
 	if err := service.UpdateAvatar(ctx, userID, avatarURL); err != nil {
 		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, err.Error()))
 		return
@@ -207,23 +198,12 @@ func PublishVideo(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	videoDir := "uploads/videos"
-	log.Printf("创建视频目录: %s", videoDir)
-	if err := os.MkdirAll(videoDir, 0755); err != nil {
-		log.Printf("创建视频目录失败: %v", err)
-		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to create video upload dir"))
+	videoURL, err := minio.UploadMultipartFile(ctx, "videos", videoFile)
+	if err != nil {
+		log.Printf("上传视频到 MinIO 失败: %v", err)
+		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to upload video to storage"))
 		return
 	}
-	videoExt := filepath.Ext(videoFile.Filename)
-	videoFilename := fmt.Sprintf("%d_%d%s", userID, time.Now().UnixNano(), videoExt)
-	videoSavePath := filepath.Join(videoDir, videoFilename)
-	log.Printf("保存视频文件: %s", videoSavePath)
-	if err := c.SaveUploadedFile(videoFile, videoSavePath); err != nil {
-		log.Printf("保存视频文件失败: %v", err)
-		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to save video file"))
-		return
-	}
-	videoURL := "/" + filepath.ToSlash(videoSavePath)
 	log.Printf("视频URL: %s", videoURL)
 
 	var coverURL string
@@ -236,23 +216,12 @@ func PublishVideo(ctx context.Context, c *app.RequestContext) {
 			return
 		}
 
-		coverDir := "uploads/covers"
-		log.Printf("创建封面目录: %s", coverDir)
-		if err := os.MkdirAll(coverDir, 0755); err != nil {
-			log.Printf("创建封面目录失败: %v", err)
-			c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to create cover upload dir"))
+		coverURL, err = minio.UploadMultipartFile(ctx, "covers", coverFile)
+		if err != nil {
+			log.Printf("上传封面到 MinIO 失败: %v", err)
+			c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to upload cover to storage"))
 			return
 		}
-		coverExt := filepath.Ext(coverFile.Filename)
-		coverFilename := fmt.Sprintf("%d_%d%s", userID, time.Now().UnixNano(), coverExt)
-		coverSavePath := filepath.Join(coverDir, coverFilename)
-		log.Printf("保存封面文件: %s", coverSavePath)
-		if err := c.SaveUploadedFile(coverFile, coverSavePath); err != nil {
-			log.Printf("保存封面文件失败: %v", err)
-			c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, "failed to save cover file"))
-			return
-		}
-		coverURL = "/" + filepath.ToSlash(coverSavePath)
 		log.Printf("封面URL: %s", coverURL)
 	} else {
 		log.Println("未提供封面文件")
