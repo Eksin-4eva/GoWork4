@@ -70,10 +70,6 @@ Golang第四轮作业
 | GET | `/user/info` | 是 | 获取用户信息 |
 | PUT | `/user/avatar/upload` | 是 | 上传头像 |
 | POST | `/user/refresh` | 否 | 刷新 Token |
-
-### 认证模块
-| 方法 | 路径 | 需要认证 | 说明 |
-|------|------|----------|------|
 | GET | `/auth/mfa/qrcode` | 是 | 获取MFA二维码 |
 | POST | `/auth/mfa/bind` | 是 | 绑定MFA |
 
