@@ -241,6 +241,11 @@ func DeleteComment(ctx context.Context, userID int64, commentID int64) error {
 		return errors.New("cannot delete other's comment")
 	}
 
+	// 递归删除子评论
+	if err := deleteChildComments(ctx, q, commentID); err != nil {
+		return err
+	}
+
 	if c.ParentID > 0 {
 		q.Comment.WithContext(ctx).Where(q.Comment.ID.Eq(c.ParentID)).UpdateSimple(q.Comment.ChildCount.Sub(1))
 	} else {
@@ -249,4 +254,36 @@ func DeleteComment(ctx context.Context, userID int64, commentID int64) error {
 
 	_, err = q.Comment.WithContext(ctx).Where(q.Comment.ID.Eq(commentID)).Delete()
 	return err
+}
+
+// deleteChildComments 递归删除子评论
+func deleteChildComments(ctx context.Context, q *query.Query, parentID int64) error {
+	// 查询所有子评论
+	childComments, err := q.Comment.WithContext(ctx).Where(q.Comment.ParentID.Eq(parentID)).Find()
+	if err != nil {
+		return err
+	}
+
+	// 递归删除每个子评论的子评论
+	for _, child := range childComments {
+		if err := deleteChildComments(ctx, q, child.ID); err != nil {
+			return err
+		}
+
+		// 删除子评论本身
+		_, err := q.Comment.WithContext(ctx).Where(q.Comment.ID.Eq(child.ID)).Delete()
+		if err != nil {
+			return err
+		}
+
+		// 更新父评论的子评论计数
+		if child.ParentID > 0 {
+			q.Comment.WithContext(ctx).Where(q.Comment.ID.Eq(child.ParentID)).UpdateSimple(q.Comment.ChildCount.Sub(1))
+		} else {
+			// 如果是顶级评论，更新视频的评论计数
+			q.Video.WithContext(ctx).Where(q.Video.ID.Eq(child.VideoID)).UpdateSimple(q.Video.CommentCount.Sub(1))
+		}
+	}
+
+	return nil
 }
