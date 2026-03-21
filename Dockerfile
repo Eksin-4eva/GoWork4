@@ -18,6 +18,6 @@ COPY --from=builder /app/server .
 
 RUN mkdir -p /app/uploads
 
-EXPOSE 8888
+EXPOSE 8888 6666
 
 CMD ["./server"]

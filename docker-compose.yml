@@ -3,6 +3,7 @@ services:
     build: .
     ports:
       - "8888:8888"
+      - "6666:6666"
     environment:
       - MYSQL_DSN=root:Jack12345@tcp(mysql:3306)/biligo?charset=utf8mb4&parseTime=True&loc=Local
       - MYSQL_MAX_OPEN_CONNS=100
