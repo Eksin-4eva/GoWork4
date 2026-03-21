@@ -42,8 +42,7 @@ func UploadFile(ctx context.Context, objectName string, reader io.Reader, object
 		return "", fmt.Errorf("upload to minio failed: %w", err)
 	}
 
-	url := fmt.Sprintf("http://%s/%s/%s", getEndpoint(), bucket, objectName)
-	return url, nil
+	return objectName, nil
 }
 
 func UploadMultipartFile(ctx context.Context, folder string, file *multipart.FileHeader) (string, error) {

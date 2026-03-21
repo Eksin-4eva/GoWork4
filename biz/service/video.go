@@ -36,15 +36,12 @@ func getMinioURL(storedURL string) string {
 	if strings.HasPrefix(storedURL, "http://") || strings.HasPrefix(storedURL, "https://") {
 		return storedURL
 	}
-	endpoint := os.Getenv("MINIO_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "localhost:9000"
-	}
+	// 优先使用外部访问地址（给浏览器用）
 	bucket := os.Getenv("MINIO_BUCKET")
 	if bucket == "" {
 		bucket = "biligo"
 	}
-	return fmt.Sprintf("http://%s/%s/%s", endpoint, bucket, storedURL)
+	return fmt.Sprintf("http://localhost:9000/%s/%s", bucket, storedURL)
 }
 
 func videoToItem(v *model.Video) VideoItem {
