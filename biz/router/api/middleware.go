@@ -17,6 +17,7 @@ func _loginMw() []app.HandlerFunc    { return nil }
 // 视频浏览类接口无需登录
 func _getvideolistMw() []app.HandlerFunc     { return nil }
 func _getpopularvideosMw() []app.HandlerFunc { return nil }
+func _getvideodetailMw() []app.HandlerFunc   { return nil }
 func _searchvideoMw() []app.HandlerFunc      { return nil }
 func _getcommentlistMw() []app.HandlerFunc   { return nil }
 

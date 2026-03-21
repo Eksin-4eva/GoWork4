@@ -55,6 +55,15 @@ struct SearchVideoResp {
     3: i64 total
 }
 
+struct VideoDetailReq {
+    1: i64 video_id (api.query="video_id")
+}
+
+struct VideoDetailResp {
+    1: common.BaseResp base
+    2: common.Video video
+}
+
 // ==================== 视频服务定义 ====================
 
 service VideoService {
@@ -62,4 +71,5 @@ service VideoService {
     VideoListResp GetVideoList(1: VideoListReq req) (api.get="/video/list")
     PopularVideosResp GetPopularVideos(1: PopularVideosReq req) (api.get="/video/popular")
     SearchVideoResp SearchVideo(1: SearchVideoReq req) (api.post="/video/search")
+    VideoDetailResp GetVideoDetail(1: VideoDetailReq req) (api.get="/video/detail")
 }

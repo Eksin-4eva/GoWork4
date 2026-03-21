@@ -303,6 +303,23 @@ func SearchVideo(ctx context.Context, c *app.RequestContext) {
 	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"total": total, "items": items}))
 }
 
+// GetVideoDetail .
+// @router /video/detail [GET]
+func GetVideoDetail(ctx context.Context, c *app.RequestContext) {
+	videoIDStr := c.Query("video_id")
+	videoID, _ := strconv.ParseInt(videoIDStr, 10, 64)
+	if videoID == 0 {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeBadRequest, "video_id required"))
+		return
+	}
+	item, err := service.GetVideoDetail(ctx, videoID)
+	if err != nil {
+		c.JSON(consts.StatusOK, response.Fail(response.CodeInternalError, err.Error()))
+		return
+	}
+	c.JSON(consts.StatusOK, response.Success(map[string]interface{}{"video": item}))
+}
+
 // LikeAction .
 // @router /like/action [POST]
 func LikeAction(ctx context.Context, c *app.RequestContext) {

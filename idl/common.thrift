@@ -17,7 +17,7 @@ struct Video {
     4: string description
     5: string video_url
     6: string cover_url
-    7: i64 view_count
+    7: i64 visit_count
     8: i64 like_count
     9: i64 comment_count
     10: string created_at

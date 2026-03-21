@@ -7,6 +7,7 @@ Golang第四轮作业
 - **框架**: Cloudwego Hertz
 - **ORM**: GORM + gorm/gen
 - **数据库**: MySQL
+- **缓存**: Redis
 - **对象存储**: MinIO
 - **认证**: JWT（access token + refresh token）+ MFA
 - **语言**: Golang
@@ -126,6 +127,10 @@ MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
 MINIO_USE_SSL=false
 MINIO_BUCKET=biligo
+
+# Redis 配置
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=
 ```
 
 ### 本地运行
@@ -166,7 +171,7 @@ Refresh-Token: <refresh_token>
 ### 视频表 (videos)
 - id, user_id, title, description
 - video_url, cover_url
-- view_count, like_count, comment_count
+- visit_count, like_count, comment_count
 
 ### 评论表 (comments)
 - id, video_id, user_id, content, parent_id

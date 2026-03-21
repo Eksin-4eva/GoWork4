@@ -11,6 +11,7 @@ import (
 
 	"github.com/BiliGO/biz/dal/minio"
 	"github.com/BiliGO/biz/dal/mysql"
+	"github.com/BiliGO/biz/dal/redis"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
@@ -37,6 +38,14 @@ func main() {
 			log.Fatalf("minio init failed: %v", err)
 		}
 		log.Println("minio initialized successfully")
+	}
+
+	redisCfg := redis.GetConfigFromEnv()
+	if redisCfg.Addr != "" {
+		if err := redis.Init(redisCfg); err != nil {
+			log.Fatalf("redis init failed: %v", err)
+		}
+		log.Println("redis initialized successfully")
 	}
 
 	host := os.Getenv("SERVER_HOST")

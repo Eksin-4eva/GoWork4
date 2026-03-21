@@ -5,6 +5,7 @@ package api
 import (
 	"context"
 	"fmt"
+
 	"github.com/apache/thrift/lib/go/thrift"
 )
 
@@ -434,7 +435,7 @@ type Video struct {
 	Description  string `thrift:"description,4" form:"description" json:"description" query:"description"`
 	VideoURL     string `thrift:"video_url,5" form:"video_url" json:"video_url" query:"video_url"`
 	CoverURL     string `thrift:"cover_url,6" form:"cover_url" json:"cover_url" query:"cover_url"`
-	ViewCount    int64  `thrift:"view_count,7" form:"view_count" json:"view_count" query:"view_count"`
+	VisitCount   int64  `thrift:"visit_count,7" form:"visit_count" json:"visit_count" query:"visit_count"`
 	LikeCount    int64  `thrift:"like_count,8" form:"like_count" json:"like_count" query:"like_count"`
 	CommentCount int64  `thrift:"comment_count,9" form:"comment_count" json:"comment_count" query:"comment_count"`
 	CreatedAt    string `thrift:"created_at,10" form:"created_at" json:"created_at" query:"created_at"`
@@ -473,8 +474,8 @@ func (p *Video) GetCoverURL() (v string) {
 	return p.CoverURL
 }
 
-func (p *Video) GetViewCount() (v int64) {
-	return p.ViewCount
+func (p *Video) GetVisitCount() (v int64) {
+	return p.VisitCount
 }
 
 func (p *Video) GetLikeCount() (v int64) {
@@ -509,7 +510,7 @@ var fieldIDToName_Video = map[int16]string{
 	4:  "description",
 	5:  "video_url",
 	6:  "cover_url",
-	7:  "view_count",
+	7:  "visit_count",
 	8:  "like_count",
 	9:  "comment_count",
 	10: "created_at",
@@ -739,7 +740,7 @@ func (p *Video) ReadField7(iprot thrift.TProtocol) error {
 	} else {
 		_field = v
 	}
-	p.ViewCount = _field
+	p.VisitCount = _field
 	return nil
 }
 func (p *Video) ReadField8(iprot thrift.TProtocol) error {
@@ -970,10 +971,10 @@ WriteFieldEndError:
 }
 
 func (p *Video) writeField7(oprot thrift.TProtocol) (err error) {
-	if err = oprot.WriteFieldBegin("view_count", thrift.I64, 7); err != nil {
+	if err = oprot.WriteFieldBegin("visit_count", thrift.I64, 7); err != nil {
 		goto WriteFieldBeginError
 	}
-	if err := oprot.WriteI64(p.ViewCount); err != nil {
+	if err := oprot.WriteI64(p.VisitCount); err != nil {
 		return err
 	}
 	if err = oprot.WriteFieldEnd(); err != nil {

@@ -11,7 +11,7 @@ type Video struct {
 	Description  string    `gorm:"type:text"                             json:"description"`
 	VideoURL     string    `gorm:"type:varchar(512);not null"            json:"video_url"`
 	CoverURL     string    `gorm:"type:varchar(512)"                     json:"cover_url"`
-	ViewCount    int64     `gorm:"default:0"                             json:"view_count"`
+	VisitCount   int64     `gorm:"default:0"                             json:"visit_count"`
 	LikeCount    int64     `gorm:"default:0;index"                       json:"like_count"`
 	CommentCount int64     `gorm:"default:0"                             json:"comment_count"`
 	CreatedAt    time.Time `gorm:"autoCreateTime;index"                  json:"created_at"`

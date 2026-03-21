@@ -33,7 +33,7 @@ func newVideo(db *gorm.DB, opts ...gen.DOOption) video {
 	_video.Description = field.NewString(tableName, "description")
 	_video.VideoURL = field.NewString(tableName, "video_url")
 	_video.CoverURL = field.NewString(tableName, "cover_url")
-	_video.ViewCount = field.NewInt64(tableName, "view_count")
+	_video.VisitCount = field.NewInt64(tableName, "visit_count")
 	_video.LikeCount = field.NewInt64(tableName, "like_count")
 	_video.CommentCount = field.NewInt64(tableName, "comment_count")
 	_video.CreatedAt = field.NewTime(tableName, "created_at")
@@ -54,7 +54,7 @@ type video struct {
 	Description  field.String
 	VideoURL     field.String
 	CoverURL     field.String
-	ViewCount    field.Int64
+	VisitCount   field.Int64
 	LikeCount    field.Int64
 	CommentCount field.Int64
 	CreatedAt    field.Time
@@ -81,7 +81,7 @@ func (v *video) updateTableName(table string) *video {
 	v.Description = field.NewString(table, "description")
 	v.VideoURL = field.NewString(table, "video_url")
 	v.CoverURL = field.NewString(table, "cover_url")
-	v.ViewCount = field.NewInt64(table, "view_count")
+	v.VisitCount = field.NewInt64(table, "visit_count")
 	v.LikeCount = field.NewInt64(table, "like_count")
 	v.CommentCount = field.NewInt64(table, "comment_count")
 	v.CreatedAt = field.NewTime(table, "created_at")
@@ -117,7 +117,7 @@ func (v *video) fillFieldMap() {
 	v.fieldMap["description"] = v.Description
 	v.fieldMap["video_url"] = v.VideoURL
 	v.fieldMap["cover_url"] = v.CoverURL
-	v.fieldMap["view_count"] = v.ViewCount
+	v.fieldMap["visit_count"] = v.VisitCount
 	v.fieldMap["like_count"] = v.LikeCount
 	v.fieldMap["comment_count"] = v.CommentCount
 	v.fieldMap["created_at"] = v.CreatedAt

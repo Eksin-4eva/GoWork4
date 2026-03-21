@@ -12,6 +12,7 @@ import (
 	"github.com/BiliGO/biz/dal/model"
 	"github.com/BiliGO/biz/dal/mysql"
 	"github.com/BiliGO/biz/dal/query"
+	"github.com/BiliGO/biz/dal/redis"
 	"gorm.io/gorm"
 )
 
@@ -22,7 +23,7 @@ type VideoItem struct {
 	Description  string
 	VideoURL     string
 	CoverURL     string
-	ViewCount    int64
+	VisitCount   int64
 	LikeCount    int64
 	CommentCount int64
 	CreatedAt    string
@@ -52,7 +53,7 @@ func videoToItem(v *model.Video) VideoItem {
 		Description:  v.Description,
 		VideoURL:     getMinioURL(v.VideoURL),
 		CoverURL:     getMinioURL(v.CoverURL),
-		ViewCount:    v.ViewCount,
+		VisitCount:   v.VisitCount,
 		LikeCount:    v.LikeCount,
 		CommentCount: v.CommentCount,
 		CreatedAt:    v.CreatedAt.Format(time.RFC3339),
@@ -105,7 +106,7 @@ func GetVideoList(ctx context.Context, userID int64, pageNum, pageSize int) ([]V
 	return items, total, nil
 }
 
-// GetPopularVideos 热门排行榜（按点赞数降序）
+// GetPopularVideos 热门排行榜（按播放量降序）
 func GetPopularVideos(ctx context.Context, pageNum, pageSize int) ([]VideoItem, int64, error) {
 	if pageNum < 1 {
 		pageNum = 1
@@ -114,7 +115,7 @@ func GetPopularVideos(ctx context.Context, pageNum, pageSize int) ([]VideoItem, 
 		pageSize = 10
 	}
 	q := query.Use(mysql.DB)
-	vq := q.Video.WithContext(ctx).Order(q.Video.LikeCount.Desc())
+	vq := q.Video.WithContext(ctx).Order(q.Video.VisitCount.Desc())
 	total, err := vq.Count()
 	if err != nil {
 		return nil, 0, err
@@ -123,10 +124,34 @@ func GetPopularVideos(ctx context.Context, pageNum, pageSize int) ([]VideoItem, 
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// 获取视频ID列表
+	videoIDs := make([]int64, len(videos))
+	for i, v := range videos {
+		videoIDs[i] = v.ID
+	}
+
+	// 从 Redis 批量获取播放量
+	redisCounts, err := redis.BatchGetVideoVisitCounts(ctx, videoIDs)
+	if err != nil {
+		// Redis 失败时使用数据库中的播放量
+		items := make([]VideoItem, len(videos))
+		for i, v := range videos {
+			items[i] = videoToItem(v)
+		}
+		return items, total, nil
+	}
+
+	// 使用 Redis 中的播放量
 	items := make([]VideoItem, len(videos))
 	for i, v := range videos {
-		items[i] = videoToItem(v)
+		item := videoToItem(v)
+		if count, ok := redisCounts[v.ID]; ok {
+			item.VisitCount = count
+		}
+		items[i] = item
 	}
+
 	return items, total, nil
 }
 
@@ -169,4 +194,34 @@ func GetVideoByID(ctx context.Context, videoID int64) (*model.Video, error) {
 		return nil, errors.New("video not found")
 	}
 	return v, err
+}
+
+// GetVideoDetail 获取视频详情并增加访问次数
+func GetVideoDetail(ctx context.Context, videoID int64) (*VideoItem, error) {
+	q := query.Use(mysql.DB)
+
+	// 查询视频
+	v, err := q.Video.WithContext(ctx).Where(q.Video.ID.Eq(videoID)).First()
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("video not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// 使用 Redis 增加访问次数
+	visitCount, err := redis.IncrementVideoVisitCount(ctx, videoID)
+	if err != nil {
+		// Redis 失败时回退到数据库
+		_, err = q.Video.WithContext(ctx).Where(q.Video.ID.Eq(videoID)).UpdateSimple(q.Video.VisitCount.Add(1))
+		if err != nil {
+			return nil, err
+		}
+		v.VisitCount++
+	} else {
+		v.VisitCount = visitCount
+	}
+
+	item := videoToItem(v)
+	return &item, nil
 }

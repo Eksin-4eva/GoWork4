@@ -15,12 +15,16 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_USE_SSL=false
       - MINIO_BUCKET=biligo
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
     volumes:
       - uploads:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -56,7 +60,19 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   uploads:
   mysql_data:
   minio_data:
+  redis_data:
