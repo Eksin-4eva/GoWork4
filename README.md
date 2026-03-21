@@ -7,9 +7,10 @@ Golang第四轮作业
 - **框架**: Cloudwego Hertz
 - **ORM**: GORM + gorm/gen
 - **数据库**: MySQL
-- **缓存**: Redis
+- **缓存**: Redis 
 - **对象存储**: MinIO
 - **认证**: JWT（access token + refresh token）+ MFA
+- **实时通信**: WebSocket（私聊、群聊）
 - **语言**: Golang
 
 ## 项目结构
@@ -20,6 +21,11 @@ Golang第四轮作业
 ├── router.go / router_gen.go
 ├── biz/
 │   ├── handler/api/         # HTTP 处理器
+│   ├── handler/             # 其他处理器
+│   ├── websocket/           # WebSocket 处理器
+│   │   ├── handler.go       # WebSocket 连接处理
+│   │   ├── manager.go       # 连接管理器
+│   │   └── message.go       # 消息结构定义
 │   ├── service/             # 业务逻辑
 │   ├── dal/
 │   │   ├── model/           # GORM 模型
@@ -60,6 +66,7 @@ Golang第四轮作业
 | 嵌套评论 | ✅ | 支持对评论进行评论 |
 | MinIO存储 | ✅ | 视频文件对象存储 |
 | Docker部署 | ✅ | Dockerfile + docker-compose |
+| WebSocket聊天 | ✅ | 私聊、群聊、历史记录 |
 
 ## API 接口
 
@@ -103,6 +110,31 @@ Golang第四轮作业
 | GET | `/follower/list` | 否 | 获取粉丝列表 |
 | GET | `/friends/list` | 否 | 获取互关好友列表 |
 
+### WebSocket 模块
+| 连接地址 | 说明 |
+|----------|------|
+| `ws://localhost:6666/ws?user_id=123` | WebSocket聊天连接 |
+
+**消息类型**：
+- `type=1`: 私聊消息
+- `type=2`: 获取私聊历史记录（分页）
+- `type=3`: 群聊消息
+- `type=4`: 获取群聊历史记录（分页）
+
+**消息格式**：
+```json
+{
+  "type": 1,
+  "to_user_id": 456,
+  "room_id": "room1",
+  "content": "消息内容",
+  "page": 1,
+  "page_size": 20
+}
+```
+
+详细文档请参考 [API文档.md](./API文档.md)
+
 ## 快速开始
 
 ### 环境要求
@@ -110,6 +142,7 @@ Golang第四轮作业
 - Go 1.21+
 - MySQL
 - MinIO (可选，用于对象存储)
+- Redis (可选，用于缓存)
 
 ### 配置
 
@@ -138,6 +171,10 @@ REDIS_PASSWORD=
 ```bash
 go run .
 ```
+
+服务启动后：
+- HTTP API 服务：http://localhost:8888
+- WebSocket 服务：ws://localhost:6666/ws
 
 ### Docker 部署
 
