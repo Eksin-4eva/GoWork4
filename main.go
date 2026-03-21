@@ -12,6 +12,7 @@ import (
 	"github.com/BiliGO/biz/dal/minio"
 	"github.com/BiliGO/biz/dal/mysql"
 	"github.com/BiliGO/biz/dal/redis"
+	"github.com/BiliGO/biz/websocket"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
@@ -101,6 +102,40 @@ func main() {
 	})
 
 	register(h)
+
+	// 创建WebSocket服务器实例，监听6666端口
+	wsHost := os.Getenv("WS_SERVER_HOST")
+	if wsHost == "" {
+		wsHost = "0.0.0.0"
+	}
+	wsPort := os.Getenv("WS_SERVER_PORT")
+	if wsPort == "" {
+		wsPort = "6666"
+	}
+
+	wsServer := server.Default(
+		server.WithMaxRequestBodySize(500*1024*1024),
+		server.WithHostPorts(wsHost+":"+wsPort),
+	)
+
+	// 添加CORS中间件
+	wsServer.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Refresh-Token"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+
+	// 注册WebSocket路由
+	wsServer.GET("/ws", websocket.HandleWebSocket)
+
+	// 启动两个服务器
+	go func() {
+		wsServer.Spin()
+	}()
+
+	// 启动主服务器
 	h.Spin()
 }
 
