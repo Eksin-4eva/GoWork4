@@ -1,0 +1,317 @@
+syntax = "v1"
+
+info (
+	title:   "Gobili Gateway"
+	desc:    "video site api"
+	author:  "Claude"
+	version: "1.0"
+)
+
+type Base {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+type User {
+	Id        string `json:"id"`
+	Username  string `json:"username"`
+	AvatarUrl string `json:"avatar_url"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+	DeletedAt string `json:"deleted_at"`
+}
+
+type Video {
+	Id           string `json:"id"`
+	UserId       string `json:"user_id"`
+	VideoUrl     string `json:"video_url"`
+	CoverUrl     string `json:"cover_url"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	VisitCount   int64  `json:"visit_count"`
+	LikeCount    int64  `json:"like_count"`
+	CommentCount int64  `json:"comment_count"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+	DeletedAt    string `json:"deleted_at"`
+}
+
+type Comment {
+	Id         string `json:"id"`
+	UserId     string `json:"user_id"`
+	VideoId    string `json:"video_id"`
+	ParentId   string `json:"parent_id"`
+	LikeCount  int64  `json:"like_count"`
+	ChildCount int64  `json:"child_count"`
+	Content    string `json:"content"`
+	CreatedAt  string `json:"created_at"`
+	UpdatedAt  string `json:"updated_at"`
+	DeletedAt  string `json:"deleted_at"`
+}
+
+type SocialUser {
+	Id        string `json:"id"`
+	Username  string `json:"username"`
+	AvatarUrl string `json:"avatar_url"`
+}
+
+type BaseResp {
+	Base Base `json:"base"`
+}
+
+type RegisterReq {
+	Username string `form:"username"`
+	Password string `form:"password"`
+}
+
+type LoginReq {
+	Username string `form:"username"`
+	Password string `form:"password"`
+	Code     string `form:"code,optional"`
+}
+
+type UserResp {
+	Base Base `json:"base"`
+	Data User `json:"data"`
+}
+
+type UserInfoReq {
+	UserId string `form:"user_id,optional"`
+}
+
+type MfaQRCodeRespData {
+	Secret string `json:"secret"`
+	Qrcode string `json:"qrcode"`
+}
+
+type MfaQRCodeResp {
+	Base Base              `json:"base"`
+	Data MfaQRCodeRespData `json:"data"`
+}
+
+type BindMfaReq {
+	Code   string `form:"code"`
+	Secret string `form:"secret"`
+}
+
+type ImageSearchResp {
+	Base Base   `json:"base"`
+	Data string `json:"data"`
+}
+
+type FeedReq {
+	LatestTime string `form:"latest_time,optional"`
+}
+
+type VideoListData {
+	Items []Video `json:"items"`
+}
+
+type VideoListResp {
+	Base Base          `json:"base"`
+	Data VideoListData `json:"data"`
+}
+
+type PublishListReq {
+	UserId   string `form:"user_id"`
+	PageNum  int64  `form:"page_num"`
+	PageSize int64  `form:"page_size"`
+}
+
+type PagedVideoListData {
+	Items []Video `json:"items"`
+	Total int64   `json:"total"`
+}
+
+type PagedVideoListResp {
+	Base Base               `json:"base"`
+	Data PagedVideoListData `json:"data"`
+}
+
+type PopularReq {
+	PageSize int64 `form:"page_size,optional"`
+	PageNum  int64 `form:"page_num,optional"`
+}
+
+type SearchVideoReq {
+	Keywords string `form:"keywords"`
+	PageSize int64  `form:"page_size"`
+	PageNum  int64  `form:"page_num"`
+	FromDate int64  `form:"from_date,optional"`
+	ToDate   int64  `form:"to_date,optional"`
+	Username string `form:"username,optional"`
+}
+
+type LikeActionReq {
+	VideoId    string `form:"video_id,optional"`
+	CommentId  string `form:"comment_id,optional"`
+	ActionType string `form:"action_type"`
+}
+
+type LikeListReq {
+	UserId   string `form:"user_id,optional"`
+	PageSize int64  `form:"page_size,optional"`
+	PageNum  int64  `form:"page_num,optional"`
+}
+
+type CommentPublishReq {
+	VideoId   string `form:"video_id,optional"`
+	CommentId string `form:"comment_id,optional"`
+	Content   string `form:"content"`
+}
+
+type CommentListReq {
+	VideoId   string `form:"video_id,optional"`
+	CommentId string `form:"comment_id,optional"`
+	PageSize  int64  `form:"page_size,optional"`
+	PageNum   int64  `form:"page_num,optional"`
+}
+
+type CommentListData {
+	Items []Comment `json:"items"`
+}
+
+type CommentListResp {
+	Base Base            `json:"base"`
+	Data CommentListData `json:"data"`
+}
+
+type DeleteCommentReq {
+	VideoId   string `form:"video_id,optional"`
+	CommentId string `form:"comment_id,optional"`
+}
+
+type RelationActionReq {
+	ToUserId   string `form:"to_user_id"`
+	ActionType int64  `form:"action_type"`
+}
+
+type RelationListReq {
+	UserId   string `form:"user_id"`
+	PageNum  int64  `form:"page_num,optional"`
+	PageSize int64  `form:"page_size,optional"`
+}
+
+type FriendListReq {
+	PageNum  int64 `form:"page_num,optional"`
+	PageSize int64 `form:"page_size,optional"`
+}
+
+type SocialListData {
+	Items []SocialUser `json:"items"`
+	Total int64        `json:"total"`
+}
+
+type SocialListResp {
+	Base Base           `json:"base"`
+	Data SocialListData `json:"data"`
+}
+
+@server (
+	prefix: /user
+)
+service gateway-api {
+	@handler RegisterHandler
+	post /register (RegisterReq) returns (BaseResp)
+
+	@handler LoginHandler
+	post /login (LoginReq) returns (UserResp)
+
+	@handler UserInfoHandler
+	get /info (UserInfoReq) returns (UserResp)
+
+	@handler UploadAvatarHandler
+	put /avatar/upload returns (UserResp)
+
+	@handler ImageSearchHandler
+	post /image/search returns (ImageSearchResp)
+}
+
+@server (
+	prefix: /auth/mfa
+)
+service gateway-api {
+	@handler GetMfaQrcodeHandler
+	get /qrcode returns (MfaQRCodeResp)
+
+	@handler BindMfaHandler
+	post /bind (BindMfaReq) returns (BaseResp)
+}
+
+@server (
+	prefix: /video
+)
+service gateway-api {
+	@handler FeedHandler
+	get /feed (FeedReq) returns (VideoListResp)
+
+	@handler PublishHandler
+	post /publish returns (BaseResp)
+
+	@handler VideoListHandler
+	get /list (PublishListReq) returns (PagedVideoListResp)
+
+	@handler PopularHandler
+	get /popular (PopularReq) returns (VideoListResp)
+
+	@handler SearchVideoHandler
+	post /search (SearchVideoReq) returns (PagedVideoListResp)
+}
+
+@server (
+	prefix: /like
+)
+service gateway-api {
+	@handler LikeActionHandler
+	post /action (LikeActionReq) returns (BaseResp)
+
+	@handler LikeListHandler
+	get /list (LikeListReq) returns (VideoListResp)
+}
+
+@server (
+	prefix: /comment
+)
+service gateway-api {
+	@handler CommentPublishHandler
+	post /publish (CommentPublishReq) returns (BaseResp)
+
+	@handler CommentListHandler
+	get /list (CommentListReq) returns (CommentListResp)
+
+	@handler DeleteCommentHandler
+	delete /delete (DeleteCommentReq) returns (BaseResp)
+}
+
+@server (
+	prefix: /relation
+)
+service gateway-api {
+	@handler RelationActionHandler
+	post /action (RelationActionReq) returns (BaseResp)
+}
+
+@server (
+	prefix: /following
+)
+service gateway-api {
+	@handler FollowingListHandler
+	get /list (RelationListReq) returns (SocialListResp)
+}
+
+@server (
+	prefix: /follower
+)
+service gateway-api {
+	@handler FollowerListHandler
+	get /list (RelationListReq) returns (SocialListResp)
+}
+
+@server (
+	prefix: /friends
+)
+service gateway-api {
+	@handler FriendListHandler
+	get /list (FriendListReq) returns (SocialListResp)
+}
+

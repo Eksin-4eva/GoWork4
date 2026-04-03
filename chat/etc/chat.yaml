@@ -1,0 +1,16 @@
+Name: chat-ws
+Host: 0.0.0.0
+Port: 8889
+
+Auth:
+  AccessHeader: Access-Token
+  RefreshHeader: Refresh-Token
+
+MySQL:
+  DSN: root:Jack12345@tcp(127.0.0.1:3306)/Gobili?charset=utf8mb4&parseTime=True&loc=Local
+
+JWT:
+  AccessSecret: gobili-access-secret
+  RefreshSecret: gobili-refresh-secret
+  AccessExpireSeconds: 7200
+  RefreshExpireSeconds: 604800

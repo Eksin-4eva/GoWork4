@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535775.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535776.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535777.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141551776.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535778.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535779.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535780.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535781.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141541887.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141546915.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141547523.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-167998599.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/websocket-3505546.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/schema-78670161.md\")",
+      "Bash(mysql --version)",
+      "Bash(go version:*)",
+      "Bash(\"C:/Users/林某人/go/bin/goctl\" api:*)",
+      "Bash(\"C:/Users/林某人/go/bin/goctl\" model:*)",
+      "Bash(mkdir -p \"C:/Users/林某人/Desktop/ReWork4/ReBiliGOOO\")",
+      "Bash(go mod:*)",
+      "Bash(go build:*)",
+      "Bash(GOPROXY=https://goproxy.cn,direct go mod tidy)",
+      "Bash(go env:*)",
+      "Bash(go list:*)",
+      "Read(//c/Users/林某人/go/pkg/mod/github.com/zeromicro/go-zero@v1.10.0/rest/**)",
+      "Bash(GOPROXY=https://goproxy.cn,direct go get github.com/gorilla/websocket)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\林某人\\Desktop\\ReWork4\\ReBiliGOOO\\.claude"
+    ]
+  }
+}

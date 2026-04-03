@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:doc.west2.online)",
+      "WebFetch(domain:r.jina.ai)",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535768.md\")",
+      "Bash(\"C:/Users/林某人/go/bin/goctl\" --version)",
+      "Bash(\"C:/Users/林某人/desktop/ReWork4/mcp-zero/mcp-zero.exe\" --help)",
+      "Bash(\"C:/Users/林某人/desktop/ReWork4/mcp-zero/mcp-zero.exe\" -version)",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535769.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535770.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535771.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535772.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/schema-78669896.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/schema-78669875.md\")",
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535773.md\")"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "mcp-zero"
+  ],
+  "enableAllProjectMcpServers": true
+}
