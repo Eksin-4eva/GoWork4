@@ -15,6 +15,10 @@ import (
 
 func DeleteCommentHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		r, ok := withRequiredAuth(w, r, svcCtx)
+		if !ok {
+			return
+		}
 		var req types.DeleteCommentReq
 		if err := httpx.Parse(r, &req); err != nil {
 			errorResp(w, r, err)
