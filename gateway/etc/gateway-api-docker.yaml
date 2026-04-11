@@ -1,0 +1,28 @@
+Name: gateway-api
+Host: 0.0.0.0
+Port: 8888
+Timeout: 60000
+MaxBytes: 104857600
+
+Auth:
+  AccessHeader: Access-Token
+  RefreshHeader: Refresh-Token
+
+MySQL:
+  DSN: root:Jack12345@tcp(mysql:3306)/Gobili?charset=utf8mb4&parseTime=True&loc=Local
+
+JWT:
+  AccessSecret: gobili-access-secret
+  RefreshSecret: gobili-refresh-secret
+  AccessExpireSeconds: 7200
+  RefreshExpireSeconds: 604800
+
+Upload:
+  BaseURL: http://127.0.0.1:8888/static
+  AvatarDir: uploads/avatars
+  VideoDir: uploads/videos
+  ImageDir: uploads/images
+  MaxMB: 100
+
+Redis:
+  Addr: redis:6379
