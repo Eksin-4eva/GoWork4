@@ -241,6 +241,21 @@ func GetGatewayTableDDLs() []string {
 			CONSTRAINT fk_messages_from_user FOREIGN KEY (from_user_id) REFERENCES users(id),
 			CONSTRAINT fk_messages_to_user FOREIGN KEY (to_user_id) REFERENCES users(id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+		`CREATE TABLE IF NOT EXISTS chat_messages (
+			id VARCHAR(32) PRIMARY KEY,
+			room_id VARCHAR(65) NOT NULL,
+			sender_id VARCHAR(32) NOT NULL,
+			receiver_id VARCHAR(32) NOT NULL,
+			message_type VARCHAR(32) NOT NULL DEFAULT 'text',
+			content TEXT NOT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			deleted_at DATETIME NULL DEFAULT NULL,
+			INDEX idx_chat_messages_room_id (room_id),
+			INDEX idx_chat_messages_sender_id (sender_id),
+			INDEX idx_chat_messages_receiver_id (receiver_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 	}
 }
 

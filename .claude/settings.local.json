@@ -13,11 +13,12 @@
       "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535772.md\")",
       "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/schema-78669896.md\")",
       "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/schema-78669875.md\")",
-      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535773.md\")"
+      "Bash(curl -L --max-time 20 \"https://r.jina.ai/http://doc.west2.online/api-141535773.md\")",
+      "Bash(python:*)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "mcp-zero"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
