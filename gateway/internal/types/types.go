@@ -114,6 +114,10 @@ type PopularReq struct {
 	PageNum  int64 `form:"page_num,optional"`
 }
 
+type VisitVideoReq struct {
+	VideoId string `form:"video_id"`
+}
+
 type PublishListReq struct {
 	UserId   string `form:"user_id"`
 	PageNum  int64  `form:"page_num"`

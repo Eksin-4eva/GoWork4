@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"gobili/gateway/internal/types"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func (r *Repository) CreateUser(ctx context.Context, user *UserRecord) error {
@@ -90,6 +92,8 @@ func (r *Repository) ListVideosByUser(ctx context.Context, userID string, pageNu
 	return items, total, nil
 }
 
+const popularKey = "video:popular:rank"
+
 func (r *Repository) ListPopularVideos(ctx context.Context, pageNum, pageSize int64) ([]VideoRecord, error) {
 	if pageSize <= 0 {
 		pageSize = 10
@@ -97,12 +101,93 @@ func (r *Repository) ListPopularVideos(ctx context.Context, pageNum, pageSize in
 	if pageNum <= 0 {
 		pageNum = 1
 	}
+	start := (pageNum - 1) * pageSize
+	end := start + pageSize - 1
+
+	videoIDs, err := r.redis.ZRevRange(ctx, popularKey, start, end).Result()
+	if err == nil && len(videoIDs) > 0 {
+		videos, err := r.getVideosByIDs(ctx, videoIDs)
+		if err == nil && len(videos) > 0 {
+			return videos, nil
+		}
+	}
+
 	rows, err := r.db.QueryContext(ctx, `SELECT id, user_id, video_url, cover_url, title, description, visit_count, like_count, comment_count, created_at, updated_at, deleted_at FROM videos WHERE deleted_at IS NULL ORDER BY visit_count DESC, created_at DESC LIMIT ? OFFSET ?`, pageSize, (pageNum-1)*pageSize)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	return scanVideos(rows)
+	videos, err := scanVideos(rows)
+	if err != nil || len(videos) == 0 {
+		return videos, err
+	}
+
+	go r.updatePopularCache()
+
+	return videos, nil
+}
+
+func (r *Repository) getVideosByIDs(ctx context.Context, videoIDs []string) ([]VideoRecord, error) {
+	if len(videoIDs) == 0 {
+		return nil, nil
+	}
+	placeholders := make([]string, len(videoIDs))
+	args := make([]any, len(videoIDs))
+	for i, id := range videoIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := fmt.Sprintf(`SELECT id, user_id, video_url, cover_url, title, description, visit_count, like_count, comment_count, created_at, updated_at, deleted_at FROM videos WHERE id IN (%s) AND deleted_at IS NULL`, strings.Join(placeholders, ","))
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	videos, err := scanVideos(rows)
+	if err != nil {
+		return nil, err
+	}
+	videoMap := make(map[string]VideoRecord, len(videos))
+	for _, video := range videos {
+		videoMap[video.ID] = video
+	}
+	ordered := make([]VideoRecord, 0, len(videoIDs))
+	for _, id := range videoIDs {
+		video, ok := videoMap[id]
+		if ok {
+			ordered = append(ordered, video)
+		}
+	}
+	return ordered, nil
+}
+
+func (r *Repository) updatePopularCache() {
+	cacheCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	rows, err := r.db.QueryContext(cacheCtx, `SELECT id, visit_count FROM videos WHERE deleted_at IS NULL`)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+
+	var videoScores []redis.Z
+	for rows.Next() {
+		var id string
+		var visitCount int64
+		if err := rows.Scan(&id, &visitCount); err != nil {
+			continue
+		}
+		videoScores = append(videoScores, redis.Z{Score: float64(visitCount), Member: id})
+	}
+
+	if len(videoScores) > 0 {
+		pipe := r.redis.Pipeline()
+		pipe.Del(cacheCtx, popularKey)
+		pipe.ZAdd(cacheCtx, popularKey, videoScores...)
+		pipe.Expire(cacheCtx, popularKey, 5*time.Minute)
+		_, _ = pipe.Exec(cacheCtx)
+	}
 }
 
 func (r *Repository) SearchVideos(ctx context.Context, req *types.SearchVideoReq) ([]VideoRecord, int64, error) {
@@ -171,6 +256,24 @@ func (r *Repository) AddLike(ctx context.Context, userID, videoID, commentID str
 	}
 	_, err = r.db.ExecContext(ctx, `UPDATE comments SET like_count = like_count + 1 WHERE id = ?`, commentID)
 	return err
+}
+
+func (r *Repository) RecordVideoVisit(ctx context.Context, videoID string) error {
+	res, err := r.db.ExecContext(ctx, `UPDATE videos SET visit_count = visit_count + 1 WHERE id = ? AND deleted_at IS NULL`, videoID)
+	if err != nil {
+		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return fmt.Errorf("video not found")
+	}
+	if err := r.redis.ZIncrBy(ctx, popularKey, 1, videoID).Err(); err != nil {
+		return fmt.Errorf("failed to update popular rank: %w", err)
+	}
+	return nil
 }
 
 func (r *Repository) RemoveLike(ctx context.Context, userID, videoID, commentID string) error {

@@ -133,6 +133,10 @@ type PopularReq {
 	PageNum  int64 `form:"page_num,optional"`
 }
 
+type VisitVideoReq {
+	VideoId string `form:"video_id"`
+}
+
 type SearchVideoReq {
 	Keywords string `form:"keywords"`
 	PageSize int64  `form:"page_size"`
@@ -253,6 +257,9 @@ service gateway-api {
 
 	@handler PopularHandler
 	get /popular (PopularReq) returns (VideoListResp)
+
+	@handler VisitVideoHandler
+	post /visit (VisitVideoReq) returns (BaseResp)
 
 	@handler SearchVideoHandler
 	post /search (SearchVideoReq) returns (PagedVideoListResp)

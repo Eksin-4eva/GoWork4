@@ -22,12 +22,14 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"github.com/skip2/go-qrcode"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Repository struct {
-	db *sql.DB
+	db    *sql.DB
+	redis *redis.Client
 }
 
 type App struct {
@@ -94,7 +96,10 @@ func NewApp(cfg config.Config) (*App, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-	return &App{cfg: cfg, repo: &Repository{db: db}}, nil
+	rdb := redis.NewClient(&redis.Options{
+		Addr: cfg.Redis.Addr,
+	})
+	return &App{cfg: cfg, repo: &Repository{db: db, redis: rdb}}, nil
 }
 
 func (a *App) Close() error {
@@ -321,6 +326,14 @@ func (a *App) SearchVideos(ctx context.Context, req *types.SearchVideoReq) (*typ
 		return nil, err
 	}
 	return &types.PagedVideoListResp{Base: successBase(), Data: types.PagedVideoListData{Items: toVideos(items), Total: total}}, nil
+}
+func (a *App) RecordVideoVisit(ctx context.Context, currentUserID, videoID string) error {
+	_ = currentUserID
+	videoID = strings.TrimSpace(videoID)
+	if videoID == "" {
+		return errors.New("video_id is required")
+	}
+	return a.repo.RecordVideoVisit(ctx, videoID)
 }
 func (a *App) LikeAction(ctx context.Context, currentUserID string, req *types.LikeActionReq) error {
 	videoID := defaultEmpty(req.VideoId)
