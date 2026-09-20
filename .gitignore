@@ -1,0 +1,27 @@
+# 本地配置（含密钥），只提交 config.example.yaml
+/config/config.yaml
+*.local.yml
+
+# 构建产物
+/output
+coverage.txt
+*.test
+
+# 临时上传目录（已迁移到 MinIO，保留忽略以防残留）
+/uploads
+
+# 依赖与日志
+*.log
+*nohup.out
+
+# IDE
+/.idea
+/.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# hz 运行时产物
+dumped_hertz_remote_config.json

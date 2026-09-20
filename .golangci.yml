@@ -1,0 +1,62 @@
+version: "2"
+
+run:
+  concurrency: 16
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - asciicheck
+    - copyloopvar
+    - decorder
+    - errcheck
+    - errorlint
+    - forcetypeassert
+    - gocritic
+    - govet
+    - ineffassign
+    - lll
+    - makezero
+    - mirror
+    - misspell
+    - nakedret
+    - nestif
+    - nilerr
+    - nolintlint
+    - staticcheck
+    - unconvert
+    - unused
+    - whitespace
+  settings:
+    lll:
+      line-length: 160
+      tab-width: 1
+    misspell:
+      locale: US
+  exclusions:
+    generated: lax
+    paths:
+      - api/model
+
+formatters:
+  enable:
+    - gci
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(gobili)
+      custom-order: true
+      no-lex-order: true
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - gobili
+  exclusions:
+    generated: lax
+    paths:
+      - api/model
