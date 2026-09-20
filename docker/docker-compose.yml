@@ -1,0 +1,55 @@
+name: gobili
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: gobili-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: gobili
+      MYSQL_USER: gobili
+      MYSQL_PASSWORD: gobili
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: gobili-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  minio:
+    # MinIO 已不再向 Docker Hub 发布，官方镜像在 quay.io
+    image: quay.io/minio/minio:latest
+    container_name: gobili-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: gobili
+      MINIO_ROOT_PASSWORD: gobili123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  minio_data:
