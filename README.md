@@ -29,15 +29,7 @@ make test            # 单元测试
 
 ## 当前进度
 
-- [x] Phase 0 脚手架与工程规范
-- [x] Phase 1 IDL 契约
-- [x] Phase 2 基础设施层
-- [ ] Phase 3 数据层
-- [ ] Phase 4 认证与中间件
-- [ ] Phase 5 业务迁移
-- [ ] Phase 6 MinIO 存储
-- [ ] Phase 7 chat 迁移
-- [ ] Phase 8 Docker 与收口
+WORK IN PROGRESS
 
 ## 本地开发
 
