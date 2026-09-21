@@ -37,7 +37,8 @@ make test            # 单元测试
 - [ ] Phase 5 业务迁移
 - [ ] Phase 6 MinIO 存储
 - [ ] Phase 7 chat 迁移
-- [ ] Phase 8 Docker 与收口
+- [ ] Phase 8 Kafka 异步化
+- [ ] Phase 9 Docker 与收口
 
 ## 本地开发
 
