@@ -78,6 +78,19 @@ test:
 		-covermode=atomic -coverpkg=./... \
 		`go list ./... | grep -E -v "idl|config|docs|docker"`
 
+# 用 config/sql/init.sql 重建独立的测试库，并给应用账号授权。
+# 集成测试会 TRUNCATE 表，所以绝不能指向开发库。
+.PHONY: test-db
+test-db:
+	docker exec gobili-mysql mysql -uroot -proot123456 -e "DROP DATABASE IF EXISTS gobili_test; CREATE DATABASE gobili_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON gobili_test.* TO 'gobili'@'%'; FLUSH PRIVILEGES;"
+	docker exec -i gobili-mysql mysql -uroot -proot123456 gobili_test < "$(DIR)/config/sql/init.sql"
+
+# 带真实数据库的 DAL 集成测试。未起依赖时会全部跳过。
+.PHONY: test-integration
+test-integration:
+	GOBILI_TEST_DSN='gobili:gobili@tcp(127.0.0.1:3306)/gobili_test?charset=utf8mb4&parseTime=True&loc=Local' \
+		go test -count=1 -race -v ./pkg/db/...
+
 ## --------------------------------------
 ## 代码规范
 ## --------------------------------------

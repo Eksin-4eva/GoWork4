@@ -6,24 +6,33 @@ import (
 
 	"github.com/minio/minio-go/v7"
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 
 	"gobili/pkg/base/client"
+	"gobili/pkg/db"
 	"gobili/pkg/logger"
 	"gobili/pkg/utils"
 )
 
 // ClientSet 是可注入给业务层的依赖集合。
 type ClientSet struct {
-	DB      *gorm.DB
+	// DB 是各业务域 DAL 的聚合入口。业务层不直接持有 *gorm.DB，
+	// 所有 SQL 都收敛在 pkg/db 下。
+	DB      *db.Database
 	Cache   *redis.Client
 	Storage *minio.Client
 	SF      *utils.Snowflake
+
+	cleanups []func()
 }
 
 // NewClientSet 初始化全部外部依赖，任一依赖不可用即返回错误（快速失败）。
 func NewClientSet(datacenterID, workerID int64) (*ClientSet, error) {
-	db, err := client.InitMySQL()
+	sf, err := utils.NewSnowflake(datacenterID, workerID)
+	if err != nil {
+		return nil, fmt.Errorf("base.NewClientSet: new snowflake: %w", err)
+	}
+
+	gormDB, err := client.InitMySQL()
 	if err != nil {
 		return nil, err
 	}
@@ -41,32 +50,37 @@ func NewClientSet(datacenterID, workerID int64) (*ClientSet, error) {
 	}
 	logger.Infof("clientset: minio connected")
 
-	sf, err := utils.NewSnowflake(datacenterID, workerID)
-	if err != nil {
-		return nil, fmt.Errorf("base.NewClientSet: new snowflake: %w", err)
-	}
-
-	return &ClientSet{DB: db, Cache: cache, Storage: storage, SF: sf}, nil
+	return &ClientSet{
+		DB:      db.NewDatabase(gormDB, sf),
+		Cache:   cache,
+		Storage: storage,
+		SF:      sf,
+		cleanups: []func(){
+			func() {
+				if err := cache.Close(); err != nil {
+					logger.Errorf("clientset: close redis: %v", err)
+				}
+			},
+			func() {
+				sqlDB, err := gormDB.DB()
+				if err != nil {
+					logger.Errorf("clientset: get sql.DB: %v", err)
+					return
+				}
+				if err := sqlDB.Close(); err != nil {
+					logger.Errorf("clientset: close mysql: %v", err)
+				}
+			},
+		},
+	}, nil
 }
 
-// Close 释放可关闭的资源。
-func (c *ClientSet) Close() error {
+// Close 依次执行各资源的清理函数。清理失败只记日志，不影响调用方。
+func (c *ClientSet) Close() {
 	if c == nil {
-		return nil
+		return
 	}
-	if c.Cache != nil {
-		if err := c.Cache.Close(); err != nil {
-			return fmt.Errorf("base.ClientSet.Close: close redis: %w", err)
-		}
+	for _, cleanup := range c.cleanups {
+		cleanup()
 	}
-	if c.DB != nil {
-		sqlDB, err := c.DB.DB()
-		if err != nil {
-			return fmt.Errorf("base.ClientSet.Close: get sql.DB: %w", err)
-		}
-		if err := sqlDB.Close(); err != nil {
-			return fmt.Errorf("base.ClientSet.Close: close mysql: %w", err)
-		}
-	}
-	return nil
 }

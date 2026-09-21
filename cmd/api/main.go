@@ -33,9 +33,7 @@ func main() {
 		server.WithHostPorts(fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)),
 	)
 	h.OnShutdown = append(h.OnShutdown, func(_ context.Context) {
-		if err := clientset.Close(); err != nil {
-			logger.Errorf("close clientset: %v", err)
-		}
+		clientset.Close()
 	})
 
 	router.Register(h)

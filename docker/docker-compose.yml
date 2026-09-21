@@ -13,6 +13,8 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      # 首次启动（数据卷为空）时自动建表；结构变更请改 config/sql/init.sql
+      - ../config/sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot123456"]
       interval: 5s
