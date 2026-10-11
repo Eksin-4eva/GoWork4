@@ -16,6 +16,7 @@ type Config struct {
 	JWT       JWT
 	Snowflake Snowflake
 	Chat      Chat
+	Kafka     Kafka
 }
 
 // Server 是 HTTP 服务自身的基础配置。
@@ -82,6 +83,14 @@ type Chat struct {
 	// 浏览器页面会被拒绝——这是安全的默认值：Origin 校验形同虚设的后果是
 	// 任何网站都能拿访客的身份连上来。
 	AllowedOrigins []string
+}
+
+// Kafka 是消息队列配置。
+type Kafka struct {
+	Brokers []string
+	GroupID string
+	// FfmpegPath 是 ffmpeg 可执行文件路径，留空则用 PATH 里的 ffmpeg。
+	FfmpegPath string
 }
 
 // DSN 拼接 MySQL 连接串。

@@ -28,6 +28,15 @@ func New(client *minio.Client) *Storage {
 	return &Storage{client: client}
 }
 
+// Download 把对象下载到本地文件。worker 抽帧前需要先把视频落到磁盘。
+func (s *Storage) Download(ctx context.Context, key, destPath string) error {
+	if err := s.client.FGetObject(ctx, constants.StorageBucket, key, destPath,
+		minio.GetObjectOptions{}); err != nil {
+		return fmt.Errorf("storage.Download %s: %w", key, err)
+	}
+	return nil
+}
+
 // Put 校验并上传一个文件，返回 object key。
 //
 // key 形如 <prefix>/<ownerID><ext>：前缀区分资源类型，ownerID 让同一主体的

@@ -64,6 +64,11 @@ build-chat:
 	@mkdir -p "$(OUTPUT_PATH)/bin"
 	CGO_ENABLED=0 go build -o "$(OUTPUT_PATH)/bin/chat" ./cmd/chat
 
+.PHONY: build-worker
+build-worker:
+	@mkdir -p "$(OUTPUT_PATH)/bin"
+	CGO_ENABLED=0 go build -o "$(OUTPUT_PATH)/bin/worker" ./cmd/worker
+
 .PHONY: run-api
 run-api:
 	go run ./cmd/api -f "$(CONFIG_PATH)/config.yaml"
@@ -71,6 +76,10 @@ run-api:
 .PHONY: run-chat
 run-chat:
 	go run ./cmd/chat -f "$(CONFIG_PATH)/config.yaml"
+
+.PHONY: run-worker
+run-worker:
+	go run ./cmd/worker -f "$(CONFIG_PATH)/config.yaml"
 
 ## --------------------------------------
 ## 测试

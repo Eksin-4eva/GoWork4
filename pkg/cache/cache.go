@@ -10,9 +10,10 @@ import "github.com/redis/go-redis/v9"
 // Cache 是所有业务缓存的入口。
 type Cache struct {
 	Popular *Popular
+	Dedup   *Dedup
 }
 
 // New 构造缓存集合。
 func New(rdb *redis.Client) *Cache {
-	return &Cache{Popular: NewPopular(rdb)}
+	return &Cache{Popular: NewPopular(rdb), Dedup: NewDedup(rdb)}
 }

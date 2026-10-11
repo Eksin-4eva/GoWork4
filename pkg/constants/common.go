@@ -4,8 +4,9 @@ import "time"
 
 // 服务名。
 const (
-	ServiceAPI  = "gobili-api"
-	ServiceChat = "gobili-chat"
+	ServiceAPI    = "gobili-api"
+	ServiceChat   = "gobili-chat"
+	ServiceWorker = "gobili-worker"
 )
 
 // 分页默认值与保护上限，避免客户端传入超大 page_size 拖垮数据库。

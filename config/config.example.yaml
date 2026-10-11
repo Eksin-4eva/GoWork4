@@ -46,3 +46,10 @@ Chat:
   Port: 8889
   # 浏览器页面需要把来源填进来；留空则只允许不带 Origin 的客户端
   AllowedOrigins: []
+
+Kafka:
+  Brokers:
+    - 127.0.0.1:9092
+  GroupID: gobili-worker
+  # 留空则用 PATH 里的 ffmpeg；worker 用它把视频第 0 帧抽成封面
+  FfmpegPath: ""

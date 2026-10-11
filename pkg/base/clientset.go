@@ -4,9 +4,11 @@ package base
 import (
 	"fmt"
 
+	"gobili/config"
 	"gobili/pkg/base/client"
 	"gobili/pkg/cache"
 	"gobili/pkg/db"
+	"gobili/pkg/kafka"
 	"gobili/pkg/logger"
 	"gobili/pkg/storage"
 	"gobili/pkg/utils"
@@ -30,12 +32,17 @@ type ClientSet struct {
 	// 避免业务层绕过统一的校验与 key 规则。
 	Storage *storage.Storage
 	SF      *utils.Snowflake
+	// MQ 是事件的生产与消费入口。Kafka 不可用不影响启动——
+	// kafka-go 首次读写时才拨号，配置为空也只是发送时报错。
+	MQ *kafka.Broker
 
 	cleanups []func()
 }
 
 // NewClientSet 初始化全部外部依赖，任一依赖不可用即返回错误（快速失败）。
 func NewClientSet(datacenterID, workerID int64) (*ClientSet, error) {
+	cfg := config.Get()
+
 	sf, err := utils.NewSnowflake(datacenterID, workerID)
 	if err != nil {
 		return nil, fmt.Errorf("base.NewClientSet: new snowflake: %w", err)
@@ -64,6 +71,7 @@ func NewClientSet(datacenterID, workerID int64) (*ClientSet, error) {
 		Cache:   cache.New(cacheClient),
 		Storage: storage.New(storageClient),
 		SF:      sf,
+		MQ:      kafka.NewBroker(cfg.Kafka.Brokers, cfg.Kafka.GroupID),
 		cleanups: []func(){
 			func() {
 				if err := cacheClient.Close(); err != nil {
@@ -78,6 +86,11 @@ func NewClientSet(datacenterID, workerID int64) (*ClientSet, error) {
 				}
 				if err := sqlDB.Close(); err != nil {
 					logger.Errorf("clientset: close mysql: %v", err)
+				}
+			},
+			func() {
+				if err := instance.MQ.Close(); err != nil {
+					logger.Errorf("clientset: close kafka: %v", err)
 				}
 			},
 		},

@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
+	"gobili/internal/event"
 	"gobili/pkg/constants"
 	"gobili/pkg/db/model"
 	"gobili/pkg/errno"
@@ -51,12 +53,39 @@ func (s *VideoService) Publish(ctx context.Context, userID int64, p PublishParam
 		}
 	}
 
-	return s.db.Video.Create(ctx, &model.Video{
+	video := &model.Video{
 		ID:          id,
 		UserID:      userID,
 		VideoKey:    videoKey,
 		CoverKey:    coverKey,
 		Title:       title,
 		Description: strings.TrimSpace(p.Description),
-	})
+	}
+	if err := s.db.Video.Create(ctx, video); err != nil {
+		return err
+	}
+
+	// 客户端没传封面时交给 worker 异步抽帧；传了就同步存好了，不必再排一次队
+	if coverKey == "" {
+		s.emitUploaded(ctx, video)
+	}
+	return nil
+}
+
+// emitUploaded 发投稿事件，让 worker 异步抽帧生成封面。
+//
+// 发送失败只记日志：用户已经投稿成功，不能因为消息队列出问题就告诉他失败。
+// 封面有补偿任务兜底（定期扫描 cover_key 为空的视频重发事件）。
+func (s *VideoService) emitUploaded(ctx context.Context, v *model.Video) {
+	payload := event.VideoUploaded{
+		V:        constants.SchemaVersion,
+		VideoID:  v.ID,
+		VideoKey: v.VideoKey,
+	}
+	// key 用视频 ID：同一视频的事件落到同一分区，天然有序
+	key := []byte(strconv.FormatInt(v.ID, 10))
+
+	if err := s.mq.Producer.Send(ctx, constants.TopicVideoUploaded, key, payload); err != nil {
+		logger.Warnf("video.Publish: 发送封面事件失败（补偿任务会重试）: %v", err)
+	}
 }
