@@ -100,8 +100,10 @@ info=$(curl -s "$BASE/user/info" -H "Authorization: $ACCESS")
 check "查自己信息" "\"username\":\"$USERNAME\"" "$info"
 USER_ID=$(json "d['data']['id']" <<<"$info")
 
-check "上传头像" '/avatar/' \
-  "$(curl -s -X PUT "$BASE/user/avatar/upload" -H "Authorization: $ACCESS" -F "file=@$WORK/cover.jpg")"
+avatar=$(curl -s -X PUT "$BASE/user/avatar/upload" -H "Authorization: $ACCESS" -F "file=@$WORK/cover.jpg")
+check "上传头像" '/avatar/' "$avatar"
+check "头像 URL 可匿名访问" "200" \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$(json "d['data']['avatar_url']" <<<"$avatar")")"
 check "上传非图片被拒" '不支持的文件类型' \
   "$(curl -s -X PUT "$BASE/user/avatar/upload" -H "Authorization: $ACCESS" -F "file=@$WORK/video.mp4")"
 
@@ -127,6 +129,13 @@ check "投稿空标题被拒" '标题不能为空' \
 feed=$(curl -s "$BASE/video/feed")
 check "feed 含新投稿" '冒烟测试视频' "$feed"
 VIDEO_ID=$(json "d['data']['items'][0]['id']" <<<"$feed")
+
+# 返回的 URL 必须真的能取到文件。旧版就是在这里翻车的：
+# 地址拼得出来，但资源根本不存在（旧版 404，本项目此前是桶私有导致的 403）。
+check "视频 URL 可匿名访问" "200" \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$(json "d['data']['items'][0]['video_url']" <<<"$feed")")"
+check "封面 URL 可匿名访问" "200" \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$(json "d['data']['items'][0]['cover_url']" <<<"$feed")")"
 
 check "投稿列表" '冒烟测试视频' \
   "$(curl -s "$BASE/video/list?user_id=$USER_ID&page_num=1&page_size=10")"

@@ -4,12 +4,11 @@ package base
 import (
 	"fmt"
 
-	"github.com/minio/minio-go/v7"
-
 	"gobili/pkg/base/client"
 	"gobili/pkg/cache"
 	"gobili/pkg/db"
 	"gobili/pkg/logger"
+	"gobili/pkg/storage"
 	"gobili/pkg/utils"
 )
 
@@ -26,8 +25,10 @@ type ClientSet struct {
 	DB *db.Database
 	// Cache 是业务缓存（热榜等）。底层 Redis 客户端不直接暴露，
 	// 避免业务层绕过缓存封装去裸写 key。
-	Cache   *cache.Cache
-	Storage *minio.Client
+	Cache *cache.Cache
+	// Storage 是对象存储的读写入口，不直接暴露 minio 客户端，
+	// 避免业务层绕过统一的校验与 key 规则。
+	Storage *storage.Storage
 	SF      *utils.Snowflake
 
 	cleanups []func()
@@ -52,7 +53,7 @@ func NewClientSet(datacenterID, workerID int64) (*ClientSet, error) {
 	}
 	logger.Infof("clientset: redis connected")
 
-	storage, err := client.InitMinIO()
+	storageClient, err := client.InitMinIO()
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func NewClientSet(datacenterID, workerID int64) (*ClientSet, error) {
 	instance = &ClientSet{
 		DB:      db.NewDatabase(gormDB, sf),
 		Cache:   cache.New(cacheClient),
-		Storage: storage,
+		Storage: storage.New(storageClient),
 		SF:      sf,
 		cleanups: []func(){
 			func() {

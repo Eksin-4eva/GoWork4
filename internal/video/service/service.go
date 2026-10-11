@@ -2,11 +2,10 @@
 package service
 
 import (
-	"github.com/minio/minio-go/v7"
-
 	"gobili/pkg/base"
 	"gobili/pkg/cache"
 	"gobili/pkg/db"
+	"gobili/pkg/storage"
 	"gobili/pkg/utils"
 )
 
@@ -14,7 +13,7 @@ import (
 type VideoService struct {
 	db      *db.Database
 	cache   *cache.Cache
-	storage *minio.Client
+	storage *storage.Storage
 	sf      *utils.Snowflake
 }
 

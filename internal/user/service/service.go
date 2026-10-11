@@ -2,17 +2,16 @@
 package service
 
 import (
-	"github.com/minio/minio-go/v7"
-
 	"gobili/pkg/base"
 	"gobili/pkg/db"
+	"gobili/pkg/storage"
 	"gobili/pkg/utils"
 )
 
 // UserService 是用户域的业务实现。
 type UserService struct {
 	db      *db.Database
-	storage *minio.Client
+	storage *storage.Storage
 	sf      *utils.Snowflake
 }
 

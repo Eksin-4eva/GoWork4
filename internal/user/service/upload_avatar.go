@@ -2,14 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
-
-	"github.com/minio/minio-go/v7"
 
 	"gobili/pkg/constants"
 	"gobili/pkg/db/model"
 	"gobili/pkg/errno"
-	"gobili/pkg/logger"
 	"gobili/pkg/utils"
 )
 
@@ -20,30 +16,10 @@ import (
 func (s *UserService) UploadAvatar(
 	ctx context.Context, userID int64, file utils.Upload,
 ) (*model.User, error) {
-	if file.Size <= 0 {
-		return nil, errno.ParamFile.WithMessage("文件为空")
-	}
-	if file.Size > constants.MaxUploadMB<<20 {
-		return nil, errno.ParamFile.WithMessage("头像不能超过 100MB")
-	}
-
-	sniffed, err := utils.DetectContentType(file.Reader)
+	key, err := s.storage.Put(ctx, constants.StoragePrefixAvatar, userID,
+		utils.AllowedImageMIME, file, "头像")
 	if err != nil {
-		logger.Errorf("user.UploadAvatar: detect content type: %v", err)
-		return nil, errno.ParamFile.WithMessage("无法识别文件类型")
-	}
-	ext, err := utils.PickExtension(sniffed, file.Filename, utils.AllowedImageMIME)
-	if err != nil {
-		return nil, errno.ParamFile.WithError(err)
-	}
-
-	// key 只跟用户绑定，重复上传直接覆盖，不会在存储里堆垃圾
-	key := fmt.Sprintf("%s/%d%s", constants.StoragePrefixAvatar, userID, ext)
-	_, err = s.storage.PutObject(ctx, constants.StorageBucket, key, file.Reader, file.Size,
-		minio.PutObjectOptions{ContentType: sniffed})
-	if err != nil {
-		logger.Errorf("user.UploadAvatar: put object: %v", err)
-		return nil, errno.InternalError
+		return nil, err
 	}
 
 	if err := s.db.User.UpdateAvatarKey(ctx, userID, key); err != nil {
