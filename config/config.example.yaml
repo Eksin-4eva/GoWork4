@@ -12,6 +12,10 @@ MySQL:
   Username: gobili
   Password: gobili
   Charset: utf8mb4
+  # 这两个必须表达同一个时区，否则 created_at 与 updated_at 会差几个小时。
+  # Loc 影响驱动如何解析 DATETIME，TimeZone 影响数据库 CURRENT_TIMESTAMP。
+  Loc: Asia/Shanghai
+  TimeZone: "+08:00"
 
 Redis:
   Addr: 127.0.0.1:6379

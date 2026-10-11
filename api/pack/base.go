@@ -45,15 +45,6 @@ func RespData(c *app.RequestContext, data any) {
 	})
 }
 
-// RespList 返回成功并携带列表，nil 切片会被规整为空数组，
-// 避免客户端拿到 {"data": null}。
-func RespList[T any](c *app.RequestContext, items []T) {
-	if items == nil {
-		items = []T{}
-	}
-	RespData(c, items)
-}
-
 // RespError 返回错误。
 //
 // 未识别的内部错误只回一个通用文案，原始错误写入日志，

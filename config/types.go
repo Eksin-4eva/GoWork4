@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -32,6 +33,12 @@ type MySQL struct {
 	Username string
 	Password string
 	Charset  string
+	// Loc 决定驱动如何解析 DATETIME 列，取值是 Go 的时区名（如 Asia/Shanghai）。
+	Loc string
+	// TimeZone 是数据库会话时区，取值是 SQL 里能识别的偏移（如 +08:00）。
+	// 它必须与 Loc 表达同一个时区，否则 created_at（应用写入）
+	// 与 updated_at（由 CURRENT_TIMESTAMP 生成）会相差几个小时。
+	TimeZone string
 }
 
 // Redis 是缓存连接配置。
@@ -66,8 +73,14 @@ type Snowflake struct {
 
 // DSN 拼接 MySQL 连接串。
 func (m MySQL) DSN() string {
-	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local",
-		m.Username, m.Password, m.Host, m.Port, m.Database, m.Charset,
-	)
+	params := url.Values{}
+	params.Set("charset", m.Charset)
+	params.Set("parseTime", "true")
+	params.Set("loc", m.Loc)
+	// time_zone 会被驱动当成会话变量下发（SET time_zone='+08:00'），
+	// 值需要写成 SQL 字符串字面量，url 编码后是 %27+08%3A00%27
+	params.Set("time_zone", "'"+m.TimeZone+"'")
+
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?%s",
+		m.Username, m.Password, m.Host, m.Port, m.Database, params.Encode())
 }

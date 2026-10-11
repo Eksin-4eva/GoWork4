@@ -4,6 +4,8 @@ package api
 
 import (
 	"github.com/cloudwego/hertz/pkg/app"
+
+	"gobili/api/mw"
 )
 
 func rootMw() []app.HandlerFunc {
@@ -17,8 +19,7 @@ func _authMw() []app.HandlerFunc {
 }
 
 func _mfaMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{mw.Auth()}
 }
 
 func _bindmfaMw() []app.HandlerFunc {
@@ -37,8 +38,7 @@ func _commentMw() []app.HandlerFunc {
 }
 
 func _deletecommentMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{mw.Auth()}
 }
 
 func _getcommentlistMw() []app.HandlerFunc {
@@ -47,8 +47,7 @@ func _getcommentlistMw() []app.HandlerFunc {
 }
 
 func _publishcommentMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{mw.Auth()}
 }
 
 func _userMw() []app.HandlerFunc {
@@ -57,8 +56,7 @@ func _userMw() []app.HandlerFunc {
 }
 
 func _getuserinfoMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{mw.Auth()}
 }
 
 func _loginMw() []app.HandlerFunc {
@@ -77,8 +75,7 @@ func _avatarMw() []app.HandlerFunc {
 }
 
 func _uploadavatarMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{mw.Auth()}
 }
 
 func _videoMw() []app.HandlerFunc {
@@ -102,8 +99,7 @@ func _getpopularvideosMw() []app.HandlerFunc {
 }
 
 func _publishvideoMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{mw.Auth()}
 }
 
 func _searchvideosMw() []app.HandlerFunc {
@@ -112,6 +108,5 @@ func _searchvideosMw() []app.HandlerFunc {
 }
 
 func _visitvideoMw() []app.HandlerFunc {
-	// your code...
-	return nil
+	return []app.HandlerFunc{mw.Auth()}
 }

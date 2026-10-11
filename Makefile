@@ -91,6 +91,11 @@ test-integration:
 	GOBILI_TEST_DSN='gobili:gobili@tcp(127.0.0.1:3306)/gobili_test?charset=utf8mb4&parseTime=True&loc=Local' \
 		go test -count=1 -race -v ./pkg/db/...
 
+# 端到端冒烟测试。需要依赖容器与 api 服务都已经在跑。
+.PHONY: smoke
+smoke:
+	bash "$(DIR)/hack/smoke.sh"
+
 ## --------------------------------------
 ## 代码规范
 ## --------------------------------------

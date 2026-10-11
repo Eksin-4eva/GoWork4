@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -43,9 +44,24 @@ func TestMySQLDSN(t *testing.T) {
 	m := MySQL{
 		Host: "127.0.0.1", Port: 3306, Database: "gobili",
 		Username: "gobili", Password: "gobili", Charset: "utf8mb4",
+		Loc: "Asia/Shanghai", TimeZone: "+08:00",
 	}
-	want := "gobili:gobili@tcp(127.0.0.1:3306)/gobili?charset=utf8mb4&parseTime=True&loc=Local"
+	want := "gobili:gobili@tcp(127.0.0.1:3306)/gobili?" +
+		"charset=utf8mb4&loc=Asia%2FShanghai&parseTime=true&time_zone=%27%2B08%3A00%27"
 	if got := m.DSN(); got != want {
 		t.Fatalf("DSN() = %q, want %q", got, want)
+	}
+}
+
+// 会话时区必须下发到数据库，否则 created_at（应用写入）与
+// updated_at（由 CURRENT_TIMESTAMP 生成）会用不同时区，相差 8 小时。
+func TestMySQLDSNSetsSessionTimeZone(t *testing.T) {
+	m := MySQL{
+		Host: "127.0.0.1", Port: 3306, Database: "gobili",
+		Username: "gobili", Password: "gobili", Charset: "utf8mb4",
+		Loc: "Asia/Shanghai", TimeZone: "+08:00",
+	}
+	if !strings.Contains(m.DSN(), "time_zone=") {
+		t.Fatalf("DSN 必须带上 time_zone: %s", m.DSN())
 	}
 }

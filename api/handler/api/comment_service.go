@@ -5,56 +5,94 @@ package api
 import (
 	"context"
 
-	api "gobili/api/model/api"
-
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+
+	"gobili/api/pack"
+	commentservice "gobili/internal/comment/service"
+	"gobili/pkg/errno"
+
+	api "gobili/api/model/api"
 )
 
 // PublishComment .
 // @router /comment/publish [POST]
 func PublishComment(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.PublishCommentRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
 		return
 	}
 
-	resp := new(api.PublishCommentResponse)
+	videoID, err := parseID(req.VideoID)
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	parentID, err := parseOptionalID(derefString(req.CommentID))
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	err = commentservice.New().Publish(ctx, currentUserID(c), videoID, parentID, req.Content)
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespSuccess(c)
 }
 
 // GetCommentList .
 // @router /comment/list [GET]
 func GetCommentList(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.GetCommentListRequest
-	err = c.BindAndValidate(&req)
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
+		return
+	}
+
+	videoID, err := parseID(req.VideoID)
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
+		return
+	}
+	parentID, err := parseOptionalID(derefString(req.CommentID))
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+
+	comments, total, err := commentservice.New().
+		List(ctx, videoID, parentID, derefInt(req.PageNum), derefInt(req.PageSize))
+	if err != nil {
+		pack.RespError(c, err)
 		return
 	}
 
 	resp := new(api.GetCommentListResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	resp.Items = pack.BuildComments(comments)
+	resp.Total = &total
+	pack.RespData(c, resp)
 }
 
 // DeleteComment .
 // @router /comment/delete [DELETE]
 func DeleteComment(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.DeleteCommentRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
 		return
 	}
 
-	resp := new(api.DeleteCommentResponse)
+	commentID, err := parseID(req.CommentID)
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	if err := commentservice.New().Delete(ctx, currentUserID(c), commentID); err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespSuccess(c)
 }

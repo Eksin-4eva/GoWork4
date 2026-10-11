@@ -29,4 +29,12 @@ const (
 	MaxUploadMB = 100
 	// FeedLimit 是 feed 流单次返回的条数。
 	FeedLimit = 30
+	// PopularRankSize 是热门榜维护的条目数上限，
+	// 比单页上限大得多，避免翻几页就翻空了。
+	PopularRankSize = 200
+
+	// 下列上限与 config/sql/init.sql 的列宽对应，超出会在写库时直接报错，
+	// 所以在业务层先拦住并给出可读提示。
+	MaxVideoTitleRunes = 128 // videos.title varchar(128)
+	MaxCommentRunes    = 500 // comments.content text，业务上限
 )

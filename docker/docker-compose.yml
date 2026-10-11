@@ -9,6 +9,9 @@ services:
       MYSQL_DATABASE: gobili
       MYSQL_USER: gobili
       MYSQL_PASSWORD: gobili
+      # 与应用保持同一时区：否则建表脚本里的 CURRENT_TIMESTAMP 会按 UTC 写入
+      TZ: Asia/Shanghai
+    command: --default-time-zone=+08:00
     ports:
       - "3306:3306"
     volumes:

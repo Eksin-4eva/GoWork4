@@ -5,104 +5,173 @@ package api
 import (
 	"context"
 
-	api "gobili/api/model/api"
-
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+
+	"gobili/api/pack"
+	videoservice "gobili/internal/video/service"
+	"gobili/pkg/errno"
+	"gobili/pkg/utils"
+
+	api "gobili/api/model/api"
 )
 
 // GetFeed .
 // @router /video/feed [GET]
 func GetFeed(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.FeedRequest
-	err = c.BindAndValidate(&req)
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
+		return
+	}
+
+	from, err := millisStringToTime(derefString(req.LatestTime))
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
+		return
+	}
+
+	videos, err := videoservice.New().Feed(ctx, from)
+	if err != nil {
+		pack.RespError(c, err)
 		return
 	}
 
 	resp := new(api.FeedResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	resp.Items = pack.BuildVideos(videos)
+	pack.RespData(c, resp)
 }
 
 // PublishVideo .
 // @router /video/publish [POST]
 func PublishVideo(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.PublishVideoRequest
-	err = c.BindAndValidate(&req)
+	video, release, err := openUpload(c, "file")
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
 		return
 	}
+	defer release()
 
-	resp := new(api.PublishVideoResponse)
+	// 封面可选：传了就用，没传就留空交给 Phase 8 的 worker 抽帧
+	var cover *utils.Upload
+	if _, err := c.FormFile("cover"); err == nil {
+		coverUpload, coverRelease, err := openUpload(c, "cover")
+		if err != nil {
+			pack.RespError(c, err)
+			return
+		}
+		defer coverRelease()
+		cover = &coverUpload
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	err = videoservice.New().Publish(ctx, currentUserID(c), videoservice.PublishParams{
+		Title:       c.PostForm("title"),
+		Description: c.PostForm("description"),
+		Video:       video,
+		Cover:       cover,
+	})
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespSuccess(c)
 }
 
 // GetVideoList .
 // @router /video/list [GET]
 func GetVideoList(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.GetVideoListRequest
-	err = c.BindAndValidate(&req)
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
+		return
+	}
+
+	userID, err := parseID(req.UserID)
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
+		return
+	}
+
+	videos, total, err := videoservice.New().
+		List(ctx, userID, derefInt(req.PageNum), derefInt(req.PageSize))
+	if err != nil {
+		pack.RespError(c, err)
 		return
 	}
 
 	resp := new(api.GetVideoListResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	resp.Items = pack.BuildVideos(videos)
+	resp.Total = &total
+	pack.RespData(c, resp)
 }
 
 // GetPopularVideos .
 // @router /video/popular [GET]
 func GetPopularVideos(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.GetPopularVideosRequest
-	err = c.BindAndValidate(&req)
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
+		return
+	}
+
+	videos, total, err := videoservice.New().
+		Popular(ctx, derefInt(req.PageNum), derefInt(req.PageSize))
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
 		return
 	}
 
 	resp := new(api.GetPopularVideosResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	resp.Items = pack.BuildVideos(videos)
+	resp.Total = &total
+	pack.RespData(c, resp)
 }
 
 // SearchVideos .
 // @router /video/search [POST]
 func SearchVideos(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.SearchVideosRequest
-	err = c.BindAndValidate(&req)
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
+		return
+	}
+
+	videos, total, err := videoservice.New().Search(ctx, videoservice.SearchParams{
+		Keywords: derefString(req.Keywords),
+		Username: derefString(req.Username),
+		FromTime: millisToTime(req.FromDate),
+		ToTime:   millisToTime(req.ToDate),
+		PageNum:  derefInt(req.PageNum),
+		PageSize: derefInt(req.PageSize),
+	})
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
 		return
 	}
 
 	resp := new(api.SearchVideosResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	resp.Items = pack.BuildVideos(videos)
+	resp.Total = &total
+	pack.RespData(c, resp)
 }
 
 // VisitVideo .
 // @router /video/visit [POST]
 func VisitVideo(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.VisitVideoRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
 		return
 	}
 
-	resp := new(api.VisitVideoResponse)
+	videoID, err := parseID(req.VideoID)
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	if err := videoservice.New().Visit(ctx, videoID); err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespSuccess(c)
 }

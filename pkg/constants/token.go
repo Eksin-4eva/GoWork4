@@ -18,4 +18,8 @@ const (
 
 	// UserIDContextKey 是鉴权中间件写入、业务层读取当前用户 ID 的上下文键。
 	UserIDContextKey = "user_id"
+
+	// JWTIssuer 是签发者标识。校验时会连带核对，
+	// 避免与本项目共用密钥的其他系统签发的令牌被误认。
+	JWTIssuer = "gobili"
 )

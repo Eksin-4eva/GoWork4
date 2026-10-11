@@ -5,104 +5,123 @@ package api
 import (
 	"context"
 
-	api "gobili/api/model/api"
-
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+
+	"gobili/api/pack"
+	userservice "gobili/internal/user/service"
+	"gobili/pkg/constants"
+	"gobili/pkg/errno"
+
+	api "gobili/api/model/api"
 )
 
 // Register .
 // @router /user/register [POST]
 func Register(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.RegisterRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
 		return
 	}
 
-	resp := new(api.RegisterResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	if err := userservice.New().Register(ctx, req.Username, req.Password); err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespSuccess(c)
 }
 
 // Login .
 // @router /user/login [POST]
 func Login(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.LoginRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
 		return
 	}
 
-	resp := new(api.LoginResponse)
+	access, refresh, user, err := userservice.New().
+		Login(ctx, req.Username, req.Password, derefString(req.Code))
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	// 双令牌通过响应头下发，客户端拿到后替换本地存储
+	c.Header(constants.AccessTokenHeader, access)
+	c.Header(constants.RefreshTokenHeader, refresh)
+
+	pack.RespData(c, pack.BuildUser(user))
 }
 
 // GetUserInfo .
 // @router /user/info [GET]
 func GetUserInfo(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.GetUserInfoRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
 		return
 	}
 
-	resp := new(api.GetUserInfoResponse)
+	targetID, err := parseOptionalID(derefString(req.UserID))
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
 
-	c.JSON(consts.StatusOK, resp)
+	user, err := userservice.New().GetInfo(ctx, currentUserID(c), targetID)
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespData(c, pack.BuildUser(user))
 }
 
 // UploadAvatar .
 // @router /user/avatar/upload [PUT]
 func UploadAvatar(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.UploadAvatarRequest
-	err = c.BindAndValidate(&req)
+	upload, release, err := openUpload(c, "file")
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
 		return
 	}
+	defer release()
 
-	resp := new(api.UploadAvatarResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	user, err := userservice.New().UploadAvatar(ctx, currentUserID(c), upload)
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespData(c, pack.BuildUser(user))
 }
 
 // GetMfaQRCode .
 // @router /auth/mfa/qrcode [GET]
 func GetMfaQRCode(ctx context.Context, c *app.RequestContext) {
-	var err error
-	var req api.GetMfaQRCodeRequest
-	err = c.BindAndValidate(&req)
+	secret, qrcode, err := userservice.New().GetMfaQRCode(ctx, currentUserID(c))
 	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+		pack.RespError(c, err)
 		return
 	}
 
 	resp := new(api.GetMfaQRCodeResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	resp.Secret = secret
+	resp.Qrcode = qrcode
+	pack.RespData(c, resp)
 }
 
 // BindMfa .
 // @router /auth/mfa/bind [POST]
 func BindMfa(ctx context.Context, c *app.RequestContext) {
-	var err error
 	var req api.BindMfaRequest
-	err = c.BindAndValidate(&req)
-	if err != nil {
-		c.String(consts.StatusBadRequest, err.Error())
+	if err := c.BindAndValidate(&req); err != nil {
+		pack.RespError(c, errno.ParamError.WithError(err))
 		return
 	}
 
-	resp := new(api.BindMfaResponse)
-
-	c.JSON(consts.StatusOK, resp)
+	if err := userservice.New().BindMfa(ctx, currentUserID(c), req.Secret, req.Code); err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespSuccess(c)
 }

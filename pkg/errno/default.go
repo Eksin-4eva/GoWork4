@@ -11,6 +11,7 @@ var (
 	// 参数类
 	ParamError = NewErrNo(ParamErrorCode, "参数错误")
 	ParamEmpty = NewErrNo(ParamErrorCode, "参数不能为空")
+	ParamFile  = NewErrNo(ParamErrorCode, "文件不可用")
 
 	// 鉴权类。两种情况对客户端都意味着「请重新登录」：
 	// 令牌缺失，以及令牌过期/非法/被吊销。
