@@ -6,7 +6,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"gobili/api/pack"
-	"gobili/pkg/base"
+	"gobili/api/rpc"
 	"gobili/pkg/constants"
 	"gobili/pkg/errno"
 	"gobili/pkg/token"
@@ -31,7 +31,7 @@ func Auth() app.HandlerFunc {
 			return
 		}
 
-		userID, err := token.ResolveUser(ctx, base.GetClientSet().DB.User, access, refresh)
+		userID, err := token.ResolveUser(ctx, refreshTokenChecker{}, access, refresh)
 		if err != nil {
 			pack.RespError(c, err)
 			c.Abort()
@@ -50,6 +50,18 @@ func Auth() app.HandlerFunc {
 		c.Set(constants.UserIDContextKey, userID)
 		c.Next(ctx)
 	}
+}
+
+// refreshTokenChecker 通过 RPC 检查刷新令牌是否已被吊销。
+//
+// 微服务化之后网关不再直连数据库，所以这个判断只能问用户服务。
+// 它满足 pkg/token 的 RefreshTokenChecker 接口——
+// **token 包不需要知道背后是本地调用还是跨进程 RPC**，
+// 这正是「依赖抽象而不是实现」的价值。
+type refreshTokenChecker struct{}
+
+func (refreshTokenChecker) IsRefreshTokenValid(ctx context.Context, raw string) (bool, error) {
+	return rpc.VerifyRefreshToken(ctx, raw)
 }
 
 // CurrentUserID 取出当前登录用户。只在挂了 Auth 的路由上调用才有值。

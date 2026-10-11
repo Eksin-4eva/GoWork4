@@ -87,6 +87,31 @@ services:
       retries: 12
     restart: unless-stopped
 
+  etcd:
+    # 服务注册与发现：微服务启动时把地址注册进来，网关按服务名查找。
+    # 有了它，微服务扩容/重启/换机器都不需要改网关的配置。
+    image: gcr.io/etcd-development/etcd:v3.5.0
+    container_name: gobili-etcd
+    command:
+      - /usr/local/bin/etcd
+      - --name=etcd0
+      - --advertise-client-urls=http://0.0.0.0:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --initial-advertise-peer-urls=http://0.0.0.0:2380
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-cluster=etcd0=http://0.0.0.0:2380
+      - --initial-cluster-state=new
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd_data:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   # 三个进程共用一个镜像，只是启动命令不同。
   #
   # 拆成三个服务而不是在一个容器里用 shell `&` 启动：
@@ -110,6 +135,8 @@ services:
       redis:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      etcd:
         condition: service_healthy
       minio:
         condition: service_started
@@ -151,8 +178,58 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  user:
+    image: gobili/app:latest
+    container_name: gobili-user
+    command: ["./bin/user", "-f", "config/config.yaml"]
+    ports:
+      - "8881:8881"
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      etcd:
+        condition: service_healthy
+    restart: unless-stopped
+
+  video:
+    image: gobili/app:latest
+    container_name: gobili-video
+    command: ["./bin/video", "-f", "config/config.yaml"]
+    ports:
+      - "8882:8882"
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      etcd:
+        condition: service_healthy
+    restart: unless-stopped
+
+  comment:
+    image: gobili/app:latest
+    container_name: gobili-comment
+    command: ["./bin/comment", "-f", "config/config.yaml"]
+    ports:
+      - "8883:8883"
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      etcd:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   mysql_data:
   redis_data:
   minio_data:
   kafka_data:
+  etcd_data:

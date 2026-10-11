@@ -1,6 +1,7 @@
 # gobili
 
-仿抖音视频站后端。基于 CloudWeGo **Hertz** 构建，工程规范对齐 `west2-online/fzuhelper-server`。
+仿抖音视频站后端。基于 CloudWeGo **Hertz（网关）+ Kitex（微服务）+ etcd（服务发现）** 构建，
+工程规范对齐 `west2-online/fzuhelper-server`。
 
 本仓库由 GoWork4（go-zero 版）重构而来。重构方案与每一阶段的实施记录见仓库上级目录的
 `HERTZ_MIGRATION_PLAN.md`。
@@ -9,7 +10,9 @@
 
 | 组件 | 选型 | 用途 |
 |---|---|---|
-| Web 框架 | Hertz + `hz` + thrift IDL | HTTP 网关 |
+| HTTP 网关 | Hertz + `hz` + thrift IDL | 对外 HTTP，只做协议适配 |
+| RPC 框架 | **Kitex** + thrift IDL | 三个微服务之间的调用 |
+| 服务发现 | **etcd** | 微服务注册与动态发现 |
 | 数据库 | MySQL 8 + GORM | 业务数据，DDL 手写不用 AutoMigrate |
 | 缓存 | Redis 7 | 热门榜（ZSet）、事件去重 |
 | 对象存储 | MinIO | 头像 / 视频 / 封面，库里存 object key |
@@ -20,39 +23,65 @@
 ## 进程与数据流
 
 ```
-                    ┌─────────────┐
-   HTTP 8888 ──────►│  api        │──────► MySQL / Redis / MinIO
-                    └──────┬──────┘
-                           │ 发事件
-                           ▼
-                    ┌─────────────┐
-                    │  Kafka      │
-                    └──────┬──────┘
-                           │ 消费
-                           ▼
-                    ┌─────────────┐
-                    │  worker     │──────► MySQL / Redis / MinIO（抽帧、批量计数）
-                    └─────────────┘
+                            ┌──────────────┐
+   HTTP :8888  ────────────►│     api      │──────► MinIO（文件在这里上传）
+                            └───────┬──────┘
+                                    │ Kitex RPC
+                    ┌───────────────┼───────────────┐
+                    ▼               ▼               ▼
+            ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+            │  user  :8881│ │ video :8882 │ │comment:8883 │
+            └──────┬──────┘ └──────┬──────┘ └──────┬──────┘
+                   │               │               │
+                   ▼               ▼               ▼
+                MySQL      MySQL+Redis+Kafka     MySQL
+                                   │
+                                   │ 异步事件
+                                   ▼
+                            ┌─────────────┐
+                            │   Kafka     │
+                            └──────┬──────┘
+                                   │ 消费
+                                   ▼
+                            ┌─────────────┐
+                            │   worker    │──► MySQL / Redis / MinIO
+                            └─────────────┘
 
-   WebSocket 8889 ─►│  chat       │──────► MySQL / Redis
-                    └─────────────┘
+   WS :8889  ──────────────►│    chat     │──────► MySQL
+                            └─────────────┘
+
+                              ┌─────────────┐
+                              │    etcd     │  ← 三个微服务注册到这里
+                              └─────────────┘     网关按服务名动态发现
 ```
 
-- **api**：对外 HTTP 网关，15 个接口。只做校验与转发，重活都异步化
-- **worker**：消费 Kafka；抽帧生成封面、聚合播放计数。与 api 分开部署，抽帧吃 CPU 不影响接口
-- **chat**：独立的 WebSocket 长连接服务。长连接的扩缩容节奏和 HTTP 网关完全不同，所以拆开
+**六个进程，各自的依赖被压到最少：**
+
+| 进程 | 端口 | 需要什么 | 为什么 |
+|---|---|---|---|
+| api | 8888 | MinIO + etcd | 文件在这里上传，RPC 只传 key |
+| user | 8881 | MySQL | 只做用户与令牌 |
+| video | 8882 | MySQL + Redis + Kafka | 热榜、封面事件 |
+| comment | 8883 | MySQL | 只做评论 |
+| chat | 8889 | MySQL | WebSocket 长连接 |
+| worker | — | 全部 | 抽帧 + 计数聚合 |
+
+**「依赖最少」不是巧合**：用户服务的 `NewClientSet` 只传了 `WithMySQL()`，
+所以**Redis 挂了它也照常启动**。如果一开始就一次性建齐所有依赖，
+微服务化就失去了意义——它们不过是同一个大进程拆成几个壳。
 
 ## 目录结构
 
 ```
 .
-├── api/              HTTP 层：handler（hz 生成）/ model / pack（响应打包）/ mw（鉴权）/ router
-├── cmd/              三个可执行入口：api / chat / worker
+├── api/              HTTP 层：handler / model / pack / mw / router / **rpc（Kitex 客户端）**
+├── cmd/              六个可执行入口：api / user / video / comment / chat / worker
 ├── config/           配置结构与示例；sql/init.sql 是全项目唯一的建表来源
 ├── docker/           Dockerfile 与 compose（mysql + redis + minio + kafka + api/chat/worker）
 ├── hack/smoke.sh     端到端冒烟测试，40 条断言覆盖 15 个接口的正常与异常路径
-├── idl/              thrift 接口定义
-├── internal/         业务实现：user / video / comment / chat / worker / event
+├── idl/              thrift 接口定义（api 是 HTTP 契约，其余是 RPC 契约）
+├── kitex_gen/        Kitex 生成的 RPC 代码
+├── internal/         业务实现：user / video / comment（微服务）/ chat / worker / event
 └── pkg/              基础设施：base（ClientSet）/ cache / db / errno / kafka / logger / storage / token / utils
 ```
 
@@ -89,7 +118,8 @@ docker compose -f docker/docker-compose.yml up -d --build
 bash hack/smoke.sh      # 40 条断言，全绿说明栈是通的
 ```
 
-会起 7 个容器：mysql、redis、minio、kafka、api（8888）、chat（8889）、worker。
+会起 10 个容器：mysql、redis、minio、kafka、**etcd**、
+api（8888）、**user（8881）、video（8882）、comment（8883）**、chat（8889）、worker。
 首次启动时 MySQL 会自动执行 `config/sql/init.sql` 建表。
 
 ### 方式二：宿主机开发
@@ -98,6 +128,12 @@ bash hack/smoke.sh      # 40 条断言，全绿说明栈是通的
 docker compose -f docker/docker-compose.yml up -d mysql redis minio kafka
 cp config/config.example.yaml config/config.yaml
 
+# 三个微服务（各开一个终端）
+make run-user       # 8881
+make run-video      # 8882
+make run-comment    # 8883
+
+# 网关与外围（各开一个终端）
 make run-api        # 8888
 make run-chat       # 8889
 make run-worker     # Kafka 消费者

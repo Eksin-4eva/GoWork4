@@ -33,7 +33,10 @@ func main() {
 	cfg := config.Get()
 	logger.Init(constants.ServiceWorker, cfg.Server.LogLevel)
 
-	clientset, err := base.NewClientSet(cfg.Snowflake.DatacenterID, cfg.Snowflake.WorkerID)
+	// worker 需要全部依赖：抽帧要对象存储、计数要数据库与 Redis、
+	// 消费要 Kafka
+	clientset, err := base.NewClientSet(cfg.Snowflake.DatacenterID, cfg.Snowflake.WorkerID,
+		base.WithMySQL(), base.WithRedis(), base.WithMinIO(), base.WithKafka())
 	if err != nil {
 		logger.Fatalf("init clientset failed: %v", err)
 	}

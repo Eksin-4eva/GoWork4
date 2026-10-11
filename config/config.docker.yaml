@@ -56,3 +56,21 @@ Kafka:
     - kafka:29092
   GroupID: gobili-worker
   FfmpegPath: ""
+
+Etcd:
+  Endpoints:
+    - etcd:2379
+
+Services:
+  User:
+    Name: gobili.user
+    Host: 0.0.0.0
+    Port: 8881
+  Video:
+    Name: gobili.video
+    Host: 0.0.0.0
+    Port: 8882
+  Comment:
+    Name: gobili.comment
+    Host: 0.0.0.0
+    Port: 8883

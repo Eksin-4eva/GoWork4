@@ -1,22 +1,27 @@
+// cmd/api 启动 HTTP 网关。
+//
+// 微服务化之后网关的职责变得很纯粹：
+//
+//	解析 HTTP → 必要时把文件传到对象存储 → 调用下游 RPC → 拼响应
+//
+// 它**不再直连数据库、Redis、Kafka**。这不只是「少几个连接」，
+// 而是意味着数据访问的边界清晰了：所有 SQL 都在微服务里，
+// 网关想绕过服务直接改数据都做不到。
 package main
 
 import (
 	"context"
 	"flag"
 	"fmt"
-	"time"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
 
 	"gobili/api/router"
+	"gobili/api/rpc"
 	"gobili/config"
 	"gobili/pkg/base"
-	"gobili/pkg/constants"
 	"gobili/pkg/logger"
 )
-
-// kafkaSetupTimeout 是启动时确保 topic 存在的超时。
-const kafkaSetupTimeout = 5 * time.Second
 
 var configFile = flag.String("f", "config/config.yaml", "the config file path")
 
@@ -29,19 +34,16 @@ func main() {
 	cfg := config.Get()
 	logger.Init(cfg.Server.Name, cfg.Server.LogLevel)
 
-	clientset, err := base.NewClientSet(cfg.Snowflake.DatacenterID, cfg.Snowflake.WorkerID)
+	// 网关只需要对象存储：上传的文件在这里落 MinIO，
+	// 下游服务只接收 object key
+	clientset, err := base.NewClientSet(cfg.Snowflake.DatacenterID, cfg.Snowflake.WorkerID,
+		base.WithMinIO())
 	if err != nil {
 		logger.Fatalf("init clientset failed: %v", err)
 	}
 
-	// 确保 topic 存在：首次生产时 topic 不存在会直接报 UnknownTopicOrPartition。
-	// 尽力而为即可，失败不该拦住启动——事件发不出去有降级与补偿兜底。
-	ensureCtx, cancelEnsure := context.WithTimeout(context.Background(), kafkaSetupTimeout)
-	if err := clientset.MQ.EnsureTopics(
-		ensureCtx, constants.KafkaTopics(), constants.TopicPartitions); err != nil {
-		logger.Warnf("ensure kafka topics: %v", err)
-	}
-	cancelEnsure()
+	// 初始化 RPC 客户端：地址从 etcd 动态发现，不写死在配置里
+	rpc.Init()
 
 	h := server.Default(
 		server.WithHostPorts(fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)),

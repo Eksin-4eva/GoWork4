@@ -17,6 +17,8 @@ type Config struct {
 	Snowflake Snowflake
 	Chat      Chat
 	Kafka     Kafka
+	Etcd      Etcd
+	Services  Services
 }
 
 // Server 是 HTTP 服务自身的基础配置。
@@ -91,6 +93,29 @@ type Kafka struct {
 	GroupID string
 	// FfmpegPath 是 ffmpeg 可执行文件路径，留空则用 PATH 里的 ffmpeg。
 	FfmpegPath string
+}
+
+// Etcd 是服务注册与发现的配置。
+type Etcd struct {
+	Endpoints []string
+}
+
+// Services 是各微服务的注册名与监听地址。
+//
+// 网关只用 Name 去 etcd 里找服务；Host/Port 是服务端自己监听用的，
+// 也就是说**网关不关心服务部署在哪台机器上**——地址由 etcd 动态给出。
+type Services struct {
+	User    ServiceEndpoint
+	Video   ServiceEndpoint
+	Comment ServiceEndpoint
+}
+
+// ServiceEndpoint 是一个微服务的注册名与监听地址。
+type ServiceEndpoint struct {
+	// Name 是注册到 etcd 的服务名，客户端靠它发现服务
+	Name string
+	Host string
+	Port int
 }
 
 // DSN 拼接 MySQL 连接串。

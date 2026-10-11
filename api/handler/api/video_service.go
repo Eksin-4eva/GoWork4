@@ -8,11 +8,13 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"gobili/api/pack"
-	videoservice "gobili/internal/video/service"
+	"gobili/api/rpc"
+	"gobili/pkg/constants"
 	"gobili/pkg/errno"
 	"gobili/pkg/utils"
 
 	api "gobili/api/model/api"
+	video "gobili/kitex_gen/video"
 )
 
 // GetFeed .
@@ -30,46 +32,66 @@ func GetFeed(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	videos, err := videoservice.New().Feed(ctx, from)
+	req2 := new(video.GetFeedRequest)
+	if from != nil {
+		ms := from.UnixMilli()
+		req2.FromMillis = &ms
+	}
+
+	resp, err := rpc.GetFeed(ctx, req2)
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
 
-	resp := new(api.FeedResponse)
-	resp.Items = pack.BuildVideos(videos)
-	pack.RespData(c, resp)
+	result := new(api.FeedResponse)
+	result.Items = pack.BuildVideos(resp.Items)
+	pack.RespData(c, result)
 }
 
 // PublishVideo .
 // @router /video/publish [POST]
 func PublishVideo(ctx context.Context, c *app.RequestContext) {
-	video, release, err := openUpload(c, "file")
+	// 视频文件在网关直传对象存储，RPC 只传 key
+	videoObjectID, err := nextObjectID()
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
-	defer release()
+	videoKey, err := storeUpload(ctx, c, "file",
+		constants.StoragePrefixVideo, videoObjectID, utils.AllowedVideoMIME, "视频")
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
 
-	// 封面可选：传了就用，没传就留空交给 Phase 8 的 worker 抽帧
-	var cover *utils.Upload
+	// 封面可选：传了就用，没传就留空交给 worker 异步抽帧
+	coverKey := ""
 	if _, err := c.FormFile("cover"); err == nil {
-		coverUpload, coverRelease, err := openUpload(c, "cover")
+		coverObjectID, idErr := nextObjectID()
+		if idErr != nil {
+			pack.RespError(c, idErr)
+			return
+		}
+		coverKey, err = storeUpload(ctx, c, "cover",
+			constants.StoragePrefixCover, coverObjectID, utils.AllowedImageMIME, "封面")
 		if err != nil {
 			pack.RespError(c, err)
 			return
 		}
-		defer coverRelease()
-		cover = &coverUpload
 	}
 
-	err = videoservice.New().Publish(ctx, currentUserID(c), videoservice.PublishParams{
+	req := &video.PublishVideoRequest{
+		UserId:      currentUserID(c),
 		Title:       c.PostForm("title"),
 		Description: c.PostForm("description"),
-		Video:       video,
-		Cover:       cover,
-	})
-	if err != nil {
+		VideoKey:    videoKey,
+	}
+	if coverKey != "" {
+		req.CoverKey = &coverKey
+	}
+
+	if err := rpc.PublishVideo(ctx, req); err != nil {
 		pack.RespError(c, err)
 		return
 	}
@@ -91,17 +113,21 @@ func GetVideoList(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	videos, total, err := videoservice.New().
-		List(ctx, userID, derefInt(req.PageNum), derefInt(req.PageSize))
+	pageNum, pageSize := int64(derefInt(req.PageNum)), int64(derefInt(req.PageSize))
+	resp, err := rpc.GetVideoList(ctx, &video.GetVideoListRequest{
+		UserId:   userID,
+		PageNum:  &pageNum,
+		PageSize: &pageSize,
+	})
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
 
-	resp := new(api.GetVideoListResponse)
-	resp.Items = pack.BuildVideos(videos)
-	resp.Total = &total
-	pack.RespData(c, resp)
+	result := new(api.GetVideoListResponse)
+	result.Items = pack.BuildVideos(resp.Items)
+	result.Total = resp.Total
+	pack.RespData(c, result)
 }
 
 // GetPopularVideos .
@@ -113,17 +139,20 @@ func GetPopularVideos(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	videos, total, err := videoservice.New().
-		Popular(ctx, derefInt(req.PageNum), derefInt(req.PageSize))
+	pageNum, pageSize := int64(derefInt(req.PageNum)), int64(derefInt(req.PageSize))
+	resp, err := rpc.GetPopularVideos(ctx, &video.GetPopularVideosRequest{
+		PageNum:  &pageNum,
+		PageSize: &pageSize,
+	})
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
 
-	resp := new(api.GetPopularVideosResponse)
-	resp.Items = pack.BuildVideos(videos)
-	resp.Total = &total
-	pack.RespData(c, resp)
+	result := new(api.GetPopularVideosResponse)
+	result.Items = pack.BuildVideos(resp.Items)
+	result.Total = resp.Total
+	pack.RespData(c, result)
 }
 
 // SearchVideos .
@@ -135,23 +164,31 @@ func SearchVideos(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	videos, total, err := videoservice.New().Search(ctx, videoservice.SearchParams{
-		Keywords: derefString(req.Keywords),
-		Username: derefString(req.Username),
-		FromTime: millisToTime(req.FromDate),
-		ToTime:   millisToTime(req.ToDate),
-		PageNum:  derefInt(req.PageNum),
-		PageSize: derefInt(req.PageSize),
-	})
+	rpcReq := &video.SearchVideosRequest{
+		Keywords: req.Keywords,
+		Username: req.Username,
+	}
+	if from := millisToTime(req.FromDate); from != nil {
+		ms := from.UnixMilli()
+		rpcReq.FromMillis = &ms
+	}
+	if to := millisToTime(req.ToDate); to != nil {
+		ms := to.UnixMilli()
+		rpcReq.ToMillis = &ms
+	}
+	pageNum, pageSize := int64(derefInt(req.PageNum)), int64(derefInt(req.PageSize))
+	rpcReq.PageNum, rpcReq.PageSize = &pageNum, &pageSize
+
+	resp, err := rpc.SearchVideos(ctx, rpcReq)
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
 
-	resp := new(api.SearchVideosResponse)
-	resp.Items = pack.BuildVideos(videos)
-	resp.Total = &total
-	pack.RespData(c, resp)
+	result := new(api.SearchVideosResponse)
+	result.Items = pack.BuildVideos(resp.Items)
+	result.Total = resp.Total
+	pack.RespData(c, result)
 }
 
 // VisitVideo .
@@ -169,7 +206,7 @@ func VisitVideo(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	if err := videoservice.New().Visit(ctx, videoID); err != nil {
+	if err := rpc.VisitVideo(ctx, &video.VisitVideoRequest{VideoId: videoID}); err != nil {
 		pack.RespError(c, err)
 		return
 	}

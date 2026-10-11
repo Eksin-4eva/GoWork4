@@ -11,7 +11,10 @@ COPY . .
 
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/api    ./cmd/api    && \
     CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/chat   ./cmd/chat   && \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/user    ./cmd/user    && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/video   ./cmd/video   && \
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/comment ./cmd/comment
 
 FROM alpine:3.20
 
@@ -29,5 +32,5 @@ COPY config/config.docker.yaml /app/config/config.yaml
 # 不用 root 跑服务
 USER app
 
-# 8888 = HTTP 网关，8889 = WebSocket 聊天
-EXPOSE 8888 8889
+# 8888 api / 8889 chat / 8881 user / 8882 video / 8883 comment
+EXPOSE 8888 8889 8881 8882 8883

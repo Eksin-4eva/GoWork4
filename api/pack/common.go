@@ -3,32 +3,37 @@ package pack
 import (
 	"strconv"
 	"strings"
-	"time"
 
 	"gobili/config"
 )
 
-// FormatID 把雪花 ID 转成字符串。
+// FormatID 把 RPC 层的 i64 主键转成对外的字符串。
 //
-// 对外一律用字符串：int64 超过 2^53 后在 JavaScript 里会丢精度。
+// 对外一律用字符串：int64 超过 2^53 后在 JavaScript 里会丢精度，
+// 而雪花 ID 是 19 位。
 func FormatID(id int64) string {
 	return strconv.FormatInt(id, 10)
 }
 
-// FormatTime 把数据库时间转成对外字符串；零值返回空串，
-// 避免把 "0001-01-01 00:00:00" 这种零值透给客户端。
-func FormatTime(t time.Time) string {
-	if t.IsZero() {
+// FormatIDPtr 处理可选的 i64。
+func FormatIDPtr(id *int64) string {
+	if id == nil {
 		return ""
 	}
-	return t.Format("2006-01-02 15:04:05")
+	return FormatID(*id)
 }
 
-// ObjectURL 把 MinIO 的 object key 拼成可直接访问的完整地址。
+// ObjectURL 把对象存储的 key 拼成客户端可直接访问的完整地址。
 //
-// 库里存的是 key 而不是 URL，所以换存储或换域名只需要改配置，不用刷数据。
+// **这是 key → URL 的唯一转换点**，也是微服务拆分后网关的独有职责：
+// 下游服务只传 key（它们不知道客户端从哪个域名访问），
+// 由网关按当前部署的 PublicBaseURL 拼出地址。
+//
+// 好处是换存储或换 CDN 只改一行配置，不用刷任何数据。
 func ObjectURL(key string) string {
 	if key == "" {
+		// 空 key 返回空串，而不是拼一个取不到的假地址。
+		// 旧版就是拼了个必然 404 的封面地址，前端只能拿到坏图。
 		return ""
 	}
 	base := strings.TrimSuffix(config.Get().MinIO.PublicBaseURL, "/")

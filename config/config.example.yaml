@@ -53,3 +53,22 @@ Kafka:
   GroupID: gobili-worker
   # 留空则用 PATH 里的 ffmpeg；worker 用它把视频第 0 帧抽成封面
   FfmpegPath: ""
+
+# 服务注册与发现。微服务启动时把 Name 注册进来，网关按 Name 查找。
+Etcd:
+  Endpoints:
+    - 127.0.0.1:2379
+
+Services:
+  User:
+    Name: gobili.user
+    Host: 0.0.0.0
+    Port: 8881
+  Video:
+    Name: gobili.video
+    Host: 0.0.0.0
+    Port: 8882
+  Comment:
+    Name: gobili.comment
+    Host: 0.0.0.0
+    Port: 8883

@@ -29,6 +29,8 @@ help:
 	@echo "  hertz-gen-api  : Generate Hertz scaffold from idl/api.thrift"
 	@echo "  build-api      : Build the api service into output/bin"
 	@echo "  build-chat     : Build the chat service into output/bin"
+	@echo "  build-worker   : Build the worker service into output/bin"
+	@echo "  build-rpc      : Build the three microservices (user/video/comment)"
 	@echo "  run-api        : Run the api service locally"
 	@echo "  test           : Run unit tests with coverage"
 	@echo "  fmt            : Format code with gofumpt"
@@ -69,6 +71,28 @@ build-worker:
 	@mkdir -p "$(OUTPUT_PATH)/bin"
 	CGO_ENABLED=0 go build -o "$(OUTPUT_PATH)/bin/worker" ./cmd/worker
 
+# 三个 RPC 微服务
+.PHONY: build-rpc
+build-rpc: build-user build-video build-comment
+
+.PHONY: build-user
+build-user:
+	@mkdir -p "$(OUTPUT_PATH)/bin"
+	CGO_ENABLED=0 go build -o "$(OUTPUT_PATH)/bin/user" ./cmd/user
+
+.PHONY: build-video
+build-video:
+	@mkdir -p "$(OUTPUT_PATH)/bin"
+	CGO_ENABLED=0 go build -o "$(OUTPUT_PATH)/bin/video" ./cmd/video
+
+.PHONY: build-comment
+build-comment:
+	@mkdir -p "$(OUTPUT_PATH)/bin"
+	CGO_ENABLED=0 go build -o "$(OUTPUT_PATH)/bin/comment" ./cmd/comment
+
+.PHONY: build-all
+build-all: build-api build-chat build-worker build-rpc
+
 .PHONY: run-api
 run-api:
 	go run ./cmd/api -f "$(CONFIG_PATH)/config.yaml"
@@ -80,6 +104,34 @@ run-chat:
 .PHONY: run-worker
 run-worker:
 	go run ./cmd/worker -f "$(CONFIG_PATH)/config.yaml"
+
+# 三个 RPC 微服务需要分别启动（各自一个终端）
+.PHONY: run-user
+run-user:
+	go run ./cmd/user -f "$(CONFIG_PATH)/config.yaml"
+
+.PHONY: run-video
+run-video:
+	go run ./cmd/video -f "$(CONFIG_PATH)/config.yaml"
+
+.PHONY: run-comment
+run-comment:
+	go run ./cmd/comment -f "$(CONFIG_PATH)/config.yaml"
+
+## --------------------------------------
+## IDL 代码生成
+## --------------------------------------
+
+# 由 thrift IDL 生成 Kitex 的客户端/服务端代码。
+#
+# 只生成到 kitex_gen，不生成脚手架（server 的 main 与 handler 都是手写的，
+# 生成器给的骨架反而要删）。新增方法后重跑本命令即可。
+.PHONY: kitex-gen
+kitex-gen:
+	PATH="$(GOBIN_PATH):$$PATH" kitex -module $(MODULE) -thrift template=slim "$(IDL_PATH)/user.thrift"
+	PATH="$(GOBIN_PATH):$$PATH" kitex -module $(MODULE) -thrift template=slim "$(IDL_PATH)/video.thrift"
+	PATH="$(GOBIN_PATH):$$PATH" kitex -module $(MODULE) -thrift template=slim "$(IDL_PATH)/comment.thrift"
+	go mod tidy
 
 ## --------------------------------------
 ## 测试

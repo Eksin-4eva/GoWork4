@@ -1,12 +1,14 @@
 package api
 
 import (
+	"context"
 	"strconv"
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"gobili/api/mw"
+	"gobili/pkg/base"
 	"gobili/pkg/errno"
 	"gobili/pkg/utils"
 )
@@ -88,4 +90,35 @@ func openUpload(c *app.RequestContext, field string) (upload utils.Upload, relea
 
 	return utils.Upload{Reader: file, Size: header.Size, Filename: header.Filename},
 		func() { _ = file.Close() }, nil
+}
+
+// storeUpload 把 multipart 文件**直接上传到对象存储**，返回 object key。
+//
+// 为什么由网关做这件事、而不是把文件字节传给下游服务：
+// 走 RPC 传字节意味着几十上百 MB 的数据要在内存里序列化一次、反序列化一次，
+// 而视频上限是 100MB。改成「网关传存储 + RPC 传 key」之后，
+// 文件流只经过一次网络，下游服务完全不接触字节。
+//
+// objectID 只用于生成 key（如 video/123.mp4），与业务 ID 解耦。
+func storeUpload(
+	ctx context.Context, c *app.RequestContext,
+	field, prefix string, objectID int64,
+	allowed map[string]string, label string,
+) (string, error) {
+	upload, release, err := openUpload(c, field)
+	if err != nil {
+		return "", err
+	}
+	defer release()
+
+	return base.GetClientSet().Storage.Put(ctx, prefix, objectID, allowed, upload, label)
+}
+
+// nextObjectID 生成一个用于对象 key 的雪花 ID。
+func nextObjectID() (int64, error) {
+	id, err := base.GetClientSet().SF.NextVal()
+	if err != nil {
+		return 0, errno.InternalError
+	}
+	return id, nil
 }

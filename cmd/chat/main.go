@@ -36,7 +36,9 @@ func main() {
 	cfg := config.Get()
 	logger.Init(constants.ServiceChat, cfg.Server.LogLevel)
 
-	clientset, err := base.NewClientSet(cfg.Snowflake.DatacenterID, cfg.Snowflake.WorkerID)
+	// 聊天服务只需要数据库：消息落库、刷新令牌校验
+	clientset, err := base.NewClientSet(cfg.Snowflake.DatacenterID, cfg.Snowflake.WorkerID,
+		base.WithMySQL())
 	if err != nil {
 		logger.Fatalf("init clientset failed: %v", err)
 	}

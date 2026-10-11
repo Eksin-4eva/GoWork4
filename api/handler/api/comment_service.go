@@ -8,10 +8,11 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"gobili/api/pack"
-	commentservice "gobili/internal/comment/service"
+	"gobili/api/rpc"
 	"gobili/pkg/errno"
 
 	api "gobili/api/model/api"
+	comment "gobili/kitex_gen/comment"
 )
 
 // PublishComment .
@@ -34,8 +35,16 @@ func PublishComment(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	err = commentservice.New().Publish(ctx, currentUserID(c), videoID, parentID, req.Content)
-	if err != nil {
+	rpcReq := &comment.PublishCommentRequest{
+		UserId:  currentUserID(c),
+		VideoId: videoID,
+		Content: req.Content,
+	}
+	if parentID != 0 {
+		rpcReq.ParentId = &parentID
+	}
+
+	if err := rpc.PublishComment(ctx, rpcReq); err != nil {
 		pack.RespError(c, err)
 		return
 	}
@@ -62,17 +71,26 @@ func GetCommentList(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	comments, total, err := commentservice.New().
-		List(ctx, videoID, parentID, derefInt(req.PageNum), derefInt(req.PageSize))
+	pageNum, pageSize := int64(derefInt(req.PageNum)), int64(derefInt(req.PageSize))
+	rpcReq := &comment.GetCommentListRequest{
+		VideoId:  videoID,
+		PageNum:  &pageNum,
+		PageSize: &pageSize,
+	}
+	if parentID != 0 {
+		rpcReq.ParentId = &parentID
+	}
+
+	resp, err := rpc.GetCommentList(ctx, rpcReq)
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
 
-	resp := new(api.GetCommentListResponse)
-	resp.Items = pack.BuildComments(comments)
-	resp.Total = &total
-	pack.RespData(c, resp)
+	result := new(api.GetCommentListResponse)
+	result.Items = pack.BuildComments(resp.Items)
+	result.Total = resp.Total
+	pack.RespData(c, result)
 }
 
 // DeleteComment .
@@ -90,7 +108,11 @@ func DeleteComment(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	if err := commentservice.New().Delete(ctx, currentUserID(c), commentID); err != nil {
+	err = rpc.DeleteComment(ctx, &comment.DeleteCommentRequest{
+		UserId:    currentUserID(c),
+		CommentId: commentID,
+	})
+	if err != nil {
 		pack.RespError(c, err)
 		return
 	}

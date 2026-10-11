@@ -8,11 +8,13 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 
 	"gobili/api/pack"
-	userservice "gobili/internal/user/service"
+	"gobili/api/rpc"
 	"gobili/pkg/constants"
 	"gobili/pkg/errno"
+	"gobili/pkg/utils"
 
 	api "gobili/api/model/api"
+	user "gobili/kitex_gen/user"
 )
 
 // Register .
@@ -24,7 +26,11 @@ func Register(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	if err := userservice.New().Register(ctx, req.Username, req.Password); err != nil {
+	err := rpc.Register(ctx, &user.RegisterRequest{
+		Username: req.Username,
+		Password: req.Password,
+	})
+	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
@@ -40,18 +46,26 @@ func Login(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	access, refresh, user, err := userservice.New().
-		Login(ctx, req.Username, req.Password, derefString(req.Code))
+	var mfaCode *string
+	if req.Code != nil {
+		mfaCode = req.Code
+	}
+
+	resp, err := rpc.Login(ctx, &user.LoginRequest{
+		Username: req.Username,
+		Password: req.Password,
+		Code:     mfaCode,
+	})
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
 
-	// 双令牌通过响应头下发，客户端拿到后替换本地存储
-	c.Header(constants.AccessTokenHeader, access)
-	c.Header(constants.RefreshTokenHeader, refresh)
+	// 双令牌由用户服务签发，网关负责写进响应头
+	c.Header(constants.AccessTokenHeader, derefString(resp.AccessToken))
+	c.Header(constants.RefreshTokenHeader, derefString(resp.RefreshToken))
 
-	pack.RespData(c, pack.BuildUser(user))
+	pack.RespData(c, pack.BuildUser(resp.User))
 }
 
 // GetUserInfo .
@@ -69,45 +83,62 @@ func GetUserInfo(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	user, err := userservice.New().GetInfo(ctx, currentUserID(c), targetID)
+	resp, err := rpc.GetUserInfo(ctx, &user.GetUserInfoRequest{
+		CurrentUserId: currentUserID(c),
+		TargetUserId:  &targetID,
+	})
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
-	pack.RespData(c, pack.BuildUser(user))
+	pack.RespData(c, pack.BuildUser(resp.User))
 }
 
 // UploadAvatar .
 // @router /user/avatar/upload [PUT]
 func UploadAvatar(ctx context.Context, c *app.RequestContext) {
-	upload, release, err := openUpload(c, "file")
-	if err != nil {
-		pack.RespError(c, err)
-		return
-	}
-	defer release()
+	userID := currentUserID(c)
 
-	user, err := userservice.New().UploadAvatar(ctx, currentUserID(c), upload)
+	objectID, err := nextObjectID()
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
-	pack.RespData(c, pack.BuildUser(user))
+
+	// 文件在网关直接落对象存储，RPC 只传 key
+	avatarKey, err := storeUpload(ctx, c, "file",
+		constants.StoragePrefixAvatar, objectID, utils.AllowedImageMIME, "头像")
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+
+	resp, err := rpc.UpdateAvatar(ctx, &user.UpdateAvatarRequest{
+		UserId:    userID,
+		AvatarKey: avatarKey,
+	})
+	if err != nil {
+		pack.RespError(c, err)
+		return
+	}
+	pack.RespData(c, pack.BuildUser(resp.User))
 }
 
 // GetMfaQRCode .
 // @router /auth/mfa/qrcode [GET]
 func GetMfaQRCode(ctx context.Context, c *app.RequestContext) {
-	secret, qrcode, err := userservice.New().GetMfaQRCode(ctx, currentUserID(c))
+	resp, err := rpc.GetMfaQRCode(ctx, &user.GetMfaQRCodeRequest{
+		UserId: currentUserID(c),
+	})
 	if err != nil {
 		pack.RespError(c, err)
 		return
 	}
 
-	resp := new(api.GetMfaQRCodeResponse)
-	resp.Secret = secret
-	resp.Qrcode = qrcode
-	pack.RespData(c, resp)
+	result := new(api.GetMfaQRCodeResponse)
+	result.Secret = derefString(resp.Secret)
+	result.Qrcode = derefString(resp.Qrcode)
+	pack.RespData(c, result)
 }
 
 // BindMfa .
@@ -119,7 +150,12 @@ func BindMfa(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 
-	if err := userservice.New().BindMfa(ctx, currentUserID(c), req.Secret, req.Code); err != nil {
+	err := rpc.BindMfa(ctx, &user.BindMfaRequest{
+		UserId: currentUserID(c),
+		Secret: req.Secret,
+		Code:   req.Code,
+	})
+	if err != nil {
 		pack.RespError(c, err)
 		return
 	}

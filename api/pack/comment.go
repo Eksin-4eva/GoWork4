@@ -2,28 +2,28 @@ package pack
 
 import (
 	hzmodel "gobili/api/model/model"
-	dbmodel "gobili/pkg/db/model"
+	"gobili/kitex_gen/rpcmodel"
 )
 
-// BuildComment 把数据库模型转成对外的评论模型。
-func BuildComment(c *dbmodel.Comment) *hzmodel.Comment {
+// BuildComment 把 RPC 返回的评论模型转成对外的 HTTP 模型。
+func BuildComment(c *rpcmodel.Comment) *hzmodel.Comment {
 	if c == nil {
 		return nil
 	}
 	return &hzmodel.Comment{
-		ID:         FormatID(c.ID),
-		UserID:     FormatID(c.UserID),
-		VideoID:    FormatID(c.VideoID),
-		ParentID:   FormatID(c.ParentID),
+		ID:         FormatID(c.Id),
+		UserID:     FormatID(c.UserId),
+		VideoID:    FormatID(c.VideoId),
+		ParentID:   FormatID(c.ParentId),
 		ChildCount: c.ChildCount,
 		Content:    c.Content,
-		CreatedAt:  FormatTime(c.CreatedAt),
-		UpdatedAt:  FormatTime(c.UpdatedAt),
+		CreatedAt:  c.CreatedAt,
+		UpdatedAt:  c.UpdatedAt,
 	}
 }
 
-// BuildComments 批量转换，保证空列表返回 [] 而不是 null。
-func BuildComments(comments []*dbmodel.Comment) []*hzmodel.Comment {
+// BuildComments 批量转换，保证空列表返回空切片而不是 nil。
+func BuildComments(comments []*rpcmodel.Comment) []*hzmodel.Comment {
 	result := make([]*hzmodel.Comment, 0, len(comments))
 	for _, c := range comments {
 		result = append(result, BuildComment(c))
