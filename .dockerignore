@@ -1,0 +1,12 @@
+# 不把本地产物和版本库元数据塞进构建上下文
+.git
+.gitignore
+output/
+coverage.txt
+config/config.yaml
+*.log
+
+# 文档不进镜像
+*.md
+hack/
+docker/docker-compose.yml

@@ -63,12 +63,14 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      # 应用跑在宿主机上，所以对外宣告 127.0.0.1；
-      # 将来应用也进容器时，这里要改成 kafka:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
+      # 两套监听器：宿主机上的应用连 9092，容器里的应用连 29092。
+      # 只配一套的话，总有一边的地址是连不通的——
+      # 容器里的 127.0.0.1 指向它自己，宿主机上的 kafka 又解析不到。
+      KAFKA_LISTENERS: PLAINTEXT://:9092,INTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092,INTERNAL://kafka:29092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@127.0.0.1:9093
       # 单节点必须把副本因子降为 1，否则创建内部 topic 会失败
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -83,6 +85,70 @@ services:
       interval: 10s
       timeout: 10s
       retries: 12
+    restart: unless-stopped
+
+  # 三个进程共用一个镜像，只是启动命令不同。
+  #
+  # 拆成三个服务而不是在一个容器里用 shell `&` 启动：
+  # 后者会吞掉除最后一个之外所有进程的退出码，哪个挂了 Docker 都看不见。
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: gobili/app:latest
+    container_name: gobili-api
+    command: ["./bin/api", "-f", "config/config.yaml"]
+    environment:
+      # 与应用时区保持一致：Go 的 time.Now() 也会用到它，
+      # 不设的话日志与聊天消息的时间戳会是 UTC，而库里是 +08:00
+      TZ: Asia/Shanghai
+    ports:
+      - "8888:8888"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    # MinIO 没有健康检查（镜像里没有可用的探测工具），
+    # 所以万一 api 先于它起来会启动失败，靠重启策略兜住
+    restart: unless-stopped
+
+  chat:
+    image: gobili/app:latest
+    container_name: gobili-chat
+    command: ["./bin/chat", "-f", "config/config.yaml"]
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      - "8889:8889"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    image: gobili/app:latest
+    container_name: gobili-worker
+    command: ["./bin/worker", "-f", "config/config.yaml"]
+    environment:
+      TZ: Asia/Shanghai
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      minio:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

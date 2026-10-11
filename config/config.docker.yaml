@@ -1,0 +1,58 @@
+# 容器内使用的配置：主机名换成 compose 的服务名。
+#
+# 与 config.yaml 的区别只有地址：
+#   宿主机开发 → 127.0.0.1 / 端口映射
+#   容器内     → mysql / redis / minio / kafka:29092
+#
+# PublicBaseURL 例外：媒体 URL 是给**客户端**用的，
+# 客户端在宿主机上，所以这里仍然写 127.0.0.1:9000。
+Server:
+  Name: gobili-api
+  Host: 0.0.0.0
+  Port: 8888
+  LogLevel: INFO
+
+MySQL:
+  Host: mysql
+  Port: 3306
+  Database: gobili
+  Username: gobili
+  Password: gobili
+  Charset: utf8mb4
+  Loc: Asia/Shanghai
+  TimeZone: "+08:00"
+
+Redis:
+  Addr: redis:6379
+  Password: ""
+  DB: 0
+
+MinIO:
+  Endpoint: minio:9000
+  AccessKey: gobili
+  SecretKey: gobili123
+  UseSSL: false
+  PublicBaseURL: http://127.0.0.1:9000/gobili
+
+# 生产环境务必替换：openssl rand -base64 32
+JWT:
+  AccessSecret: dev-access-secret-do-not-use-in-prod
+  RefreshSecret: dev-refresh-secret-do-not-use-in-prod
+  AccessTTL: 2h
+  RefreshTTL: 168h
+
+Snowflake:
+  DatacenterID: 0
+  WorkerID: 0
+
+Chat:
+  Host: 0.0.0.0
+  Port: 8889
+  AllowedOrigins: []
+
+Kafka:
+  # 容器内走 INTERNAL 监听器（见 docker-compose 的 KAFKA_ADVERTISED_LISTENERS）
+  Brokers:
+    - kafka:29092
+  GroupID: gobili-worker
+  FfmpegPath: ""
