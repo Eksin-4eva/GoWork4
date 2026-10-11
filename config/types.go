@@ -15,6 +15,7 @@ type Config struct {
 	MinIO     MinIO
 	JWT       JWT
 	Snowflake Snowflake
+	Chat      Chat
 }
 
 // Server 是 HTTP 服务自身的基础配置。
@@ -69,6 +70,18 @@ type JWT struct {
 type Snowflake struct {
 	DatacenterID int64
 	WorkerID     int64
+}
+
+// Chat 是 WebSocket 聊天服务自身的配置。
+type Chat struct {
+	Host string
+	Port int
+	// AllowedOrigins 是允许的握手来源白名单。
+	//
+	// 留空表示只接受不带 Origin 的客户端（原生 App、curl、服务端调用），
+	// 浏览器页面会被拒绝——这是安全的默认值：Origin 校验形同虚设的后果是
+	// 任何网站都能拿访客的身份连上来。
+	AllowedOrigins []string
 }
 
 // DSN 拼接 MySQL 连接串。

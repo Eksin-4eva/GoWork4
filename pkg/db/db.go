@@ -7,6 +7,7 @@ package db
 import (
 	"gorm.io/gorm"
 
+	"gobili/pkg/db/chat"
 	"gobili/pkg/db/comment"
 	"gobili/pkg/db/user"
 	"gobili/pkg/db/video"
@@ -18,6 +19,7 @@ type Database struct {
 	User    *user.DBUser
 	Video   *video.DBVideo
 	Comment *comment.DBComment
+	Chat    *chat.DBMessage
 }
 
 // NewDatabase 构造各业务域的 DAL。
@@ -26,5 +28,6 @@ func NewDatabase(client *gorm.DB, sf *utils.Snowflake) *Database {
 		User:    user.NewDBUser(client, sf),
 		Video:   video.NewDBVideo(client, sf),
 		Comment: comment.NewDBComment(client, sf),
+		Chat:    chat.NewDBMessage(client, sf),
 	}
 }

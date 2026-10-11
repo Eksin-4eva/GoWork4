@@ -68,6 +68,10 @@ build-chat:
 run-api:
 	go run ./cmd/api -f "$(CONFIG_PATH)/config.yaml"
 
+.PHONY: run-chat
+run-chat:
+	go run ./cmd/chat -f "$(CONFIG_PATH)/config.yaml"
+
 ## --------------------------------------
 ## 测试
 ## --------------------------------------
@@ -85,11 +89,11 @@ test-db:
 	docker exec gobili-mysql mysql -uroot -proot123456 -e "DROP DATABASE IF EXISTS gobili_test; CREATE DATABASE gobili_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON gobili_test.* TO 'gobili'@'%'; FLUSH PRIVILEGES;"
 	docker exec -i gobili-mysql mysql -uroot -proot123456 gobili_test < "$(DIR)/config/sql/init.sql"
 
-# 带真实数据库的 DAL 集成测试。未起依赖时会全部跳过。
+# 需要真实数据库的集成测试（DAL + 聊天服务）。未起依赖时会全部跳过。
 .PHONY: test-integration
 test-integration:
-	GOBILI_TEST_DSN='gobili:gobili@tcp(127.0.0.1:3306)/gobili_test?charset=utf8mb4&parseTime=True&loc=Local' \
-		go test -count=1 -race -v ./pkg/db/...
+	GOBILI_TEST_DSN='gobili:gobili@tcp(127.0.0.1:3306)/gobili_test?charset=utf8mb4&parseTime=True&loc=Asia%2FShanghai' \
+		go test -count=1 -race -v ./pkg/db/... ./internal/...
 
 # 端到端冒烟测试。需要依赖容器与 api 服务都已经在跑。
 .PHONY: smoke

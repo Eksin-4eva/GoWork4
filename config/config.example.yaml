@@ -40,3 +40,9 @@ JWT:
 Snowflake:
   DatacenterID: 0
   WorkerID: 0
+
+Chat:
+  Host: 0.0.0.0
+  Port: 8889
+  # 浏览器页面需要把来源填进来；留空则只允许不带 Origin 的客户端
+  AllowedOrigins: []

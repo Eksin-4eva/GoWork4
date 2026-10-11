@@ -31,7 +31,7 @@ func Auth() app.HandlerFunc {
 			return
 		}
 
-		userID, err := resolveUserID(ctx, access, refresh)
+		userID, err := token.ResolveUser(ctx, base.GetClientSet().DB.User, access, refresh)
 		if err != nil {
 			pack.RespError(c, err)
 			c.Abort()
@@ -60,35 +60,4 @@ func CurrentUserID(c *app.RequestContext) int64 {
 	}
 	userID, _ := value.(int64)
 	return userID
-}
-
-// resolveUserID 依次尝试访问令牌与刷新令牌，返回可信的用户 ID。
-//
-// 访问令牌过期时用刷新令牌换发，是「用户不用重新登录」的关键：
-// 只要刷新令牌还有效且没被吊销，就一直能拿到新的访问令牌。
-func resolveUserID(ctx context.Context, access, refresh string) (int64, error) {
-	if access != "" {
-		if userID, err := token.CheckToken(access, constants.TypeAccessToken); err == nil {
-			return userID, nil
-		}
-	}
-
-	if refresh == "" {
-		return 0, errno.AuthInvalid
-	}
-	userID, err := token.CheckToken(refresh, constants.TypeRefreshToken)
-	if err != nil {
-		return 0, err
-	}
-
-	// 光验签不够，还要确认这个刷新令牌仍在库里且没被吊销：
-	// 否则用户改密码或登出之后，此前签发的刷新令牌依然能用满 7 天。
-	valid, err := base.GetClientSet().DB.User.IsRefreshTokenValid(ctx, refresh)
-	if err != nil {
-		return 0, err
-	}
-	if !valid {
-		return 0, errno.AuthInvalid
-	}
-	return userID, nil
 }

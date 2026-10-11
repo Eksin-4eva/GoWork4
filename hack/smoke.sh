@@ -4,7 +4,8 @@
 #
 # 前置条件：
 #   docker compose -f docker/docker-compose.yml up -d
-#   go run ./cmd/api -f config/config.yaml
+#   go run ./cmd/api  -f config/config.yaml     （HTTP 网关，8888）
+#   go run ./cmd/chat -f config/config.yaml     （WebSocket 聊天，8889）
 #
 # 用法：make smoke    或    BASE=http://host:port bash hack/smoke.sh
 #
@@ -12,6 +13,7 @@
 set -uo pipefail
 
 BASE="${BASE:-http://127.0.0.1:8888}"
+CHAT_BASE="${CHAT_BASE:-http://127.0.0.1:8889}"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -185,6 +187,17 @@ check "登录缺少验证码被拒" '验证码错误' \
   "$(curl -s -X POST "$BASE/user/login" -d "username=$USERNAME&password=$PASSWORD")"
 check "带验证码登录成功" '"code":"0"' \
   "$(curl -s -X POST "$BASE/user/login" -d "username=$USERNAME&password=$PASSWORD&code=$(totp "$SECRET")")"
+
+echo
+echo "== 聊天服务 =="
+
+# WebSocket 的正常收发由 internal/chat/service 的集成测试覆盖，
+# 这里只验证进程起来了、鉴权生效、历史接口可用。
+check "健康检查" "ok" "$(curl -s "$CHAT_BASE/healthz")"
+check "历史接口未鉴权被拒" "401" \
+  "$(curl -s -o /dev/null -w '%{http_code}' "$CHAT_BASE/history?peer_id=1")"
+check "历史接口鉴权后可访问" '"code":"0"' \
+  "$(curl -s "$CHAT_BASE/history?peer_id=1" -H "Authorization: $ACCESS")"
 
 echo
 printf '\033[1m通过 %d 项，失败 %d 项\033[0m\n' "$passed" "$failed"

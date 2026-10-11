@@ -37,4 +37,9 @@ const (
 	// 所以在业务层先拦住并给出可读提示。
 	MaxVideoTitleRunes = 128 // videos.title varchar(128)
 	MaxCommentRunes    = 500 // comments.content text，业务上限
+
+	// 聊天相关上限。
+	MaxMessageRunes     = 2000 // 单条消息长度
+	DefaultMessageType  = "text"
+	ChatHistoryPageSize = 20
 )
