@@ -107,16 +107,17 @@ func (s *UserServiceImpl) BindMfa(
 	return &user.BindMfaResponse{Base: rpcbase.OK()}, nil
 }
 
-// VerifyRefreshToken 校验刷新令牌是否仍然有效。
+// ExchangeRefreshToken 换发刷新令牌。
 //
-// 网关的鉴权中间件通过它判断「这个刷新令牌被吊销了没有」——
-// 微服务化之后网关不再直连数据库，只能问用户服务。
-func (s *UserServiceImpl) VerifyRefreshToken(
-	ctx context.Context, req *user.VerifyRefreshTokenRequest,
-) (*user.VerifyRefreshTokenResponse, error) {
-	valid, err := s.svc.VerifyRefreshToken(ctx, req.Token)
+// 网关的鉴权中间件在访问令牌失效时通过它换发新令牌——
+// 微服务化之后网关不再直连数据库，「校验 + 落库」只能问用户服务。
+// 把两件事合成一次调用，网关上就不会为了落库再多发一次 RPC。
+func (s *UserServiceImpl) ExchangeRefreshToken(
+	ctx context.Context, req *user.ExchangeRefreshTokenRequest,
+) (*user.ExchangeRefreshTokenResponse, error) {
+	raw, err := s.svc.ExchangeRefreshToken(ctx, req.UserId, req.Token)
 	if err != nil {
-		return &user.VerifyRefreshTokenResponse{Base: rpcbase.Fail(err)}, nil
+		return &user.ExchangeRefreshTokenResponse{Base: rpcbase.Fail(err)}, nil
 	}
-	return &user.VerifyRefreshTokenResponse{Base: rpcbase.OK(), Valid: &valid}, nil
+	return &user.ExchangeRefreshTokenResponse{Base: rpcbase.OK(), RefreshToken: &raw}, nil
 }

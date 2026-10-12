@@ -555,80 +555,88 @@ func (p *BindMfaResponse) String() string {
 	return fmt.Sprintf("BindMfaResponse(%+v)", *p)
 }
 
-type VerifyRefreshTokenRequest struct {
-	Token string `thrift:"token,1,required" frugal:"1,required,string" json:"token"`
+type ExchangeRefreshTokenRequest struct {
+	Token  string `thrift:"token,1,required" frugal:"1,required,string" json:"token"`
+	UserId int64  `thrift:"user_id,2,required" frugal:"2,required,i64" json:"user_id"`
 }
 
-func NewVerifyRefreshTokenRequest() *VerifyRefreshTokenRequest {
-	return &VerifyRefreshTokenRequest{}
+func NewExchangeRefreshTokenRequest() *ExchangeRefreshTokenRequest {
+	return &ExchangeRefreshTokenRequest{}
 }
 
-func (p *VerifyRefreshTokenRequest) InitDefault() {
+func (p *ExchangeRefreshTokenRequest) InitDefault() {
 }
 
-func (p *VerifyRefreshTokenRequest) GetToken() (v string) {
+func (p *ExchangeRefreshTokenRequest) GetToken() (v string) {
 	return p.Token
 }
-func (p *VerifyRefreshTokenRequest) SetToken(val string) {
+
+func (p *ExchangeRefreshTokenRequest) GetUserId() (v int64) {
+	return p.UserId
+}
+func (p *ExchangeRefreshTokenRequest) SetToken(val string) {
 	p.Token = val
 }
+func (p *ExchangeRefreshTokenRequest) SetUserId(val int64) {
+	p.UserId = val
+}
 
-func (p *VerifyRefreshTokenRequest) String() string {
+func (p *ExchangeRefreshTokenRequest) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("VerifyRefreshTokenRequest(%+v)", *p)
+	return fmt.Sprintf("ExchangeRefreshTokenRequest(%+v)", *p)
 }
 
-type VerifyRefreshTokenResponse struct {
-	Base  *rpcmodel.BaseResp `thrift:"base,1,required" frugal:"1,required,rpcmodel.BaseResp" json:"base"`
-	Valid *bool              `thrift:"valid,2,optional" frugal:"2,optional,bool" json:"valid,omitempty"`
+type ExchangeRefreshTokenResponse struct {
+	Base         *rpcmodel.BaseResp `thrift:"base,1,required" frugal:"1,required,rpcmodel.BaseResp" json:"base"`
+	RefreshToken *string            `thrift:"refresh_token,2,optional" frugal:"2,optional,string" json:"refresh_token,omitempty"`
 }
 
-func NewVerifyRefreshTokenResponse() *VerifyRefreshTokenResponse {
-	return &VerifyRefreshTokenResponse{}
+func NewExchangeRefreshTokenResponse() *ExchangeRefreshTokenResponse {
+	return &ExchangeRefreshTokenResponse{}
 }
 
-func (p *VerifyRefreshTokenResponse) InitDefault() {
+func (p *ExchangeRefreshTokenResponse) InitDefault() {
 }
 
-var VerifyRefreshTokenResponse_Base_DEFAULT *rpcmodel.BaseResp
+var ExchangeRefreshTokenResponse_Base_DEFAULT *rpcmodel.BaseResp
 
-func (p *VerifyRefreshTokenResponse) GetBase() (v *rpcmodel.BaseResp) {
+func (p *ExchangeRefreshTokenResponse) GetBase() (v *rpcmodel.BaseResp) {
 	if !p.IsSetBase() {
-		return VerifyRefreshTokenResponse_Base_DEFAULT
+		return ExchangeRefreshTokenResponse_Base_DEFAULT
 	}
 	return p.Base
 }
 
-var VerifyRefreshTokenResponse_Valid_DEFAULT bool
+var ExchangeRefreshTokenResponse_RefreshToken_DEFAULT string
 
-func (p *VerifyRefreshTokenResponse) GetValid() (v bool) {
-	if !p.IsSetValid() {
-		return VerifyRefreshTokenResponse_Valid_DEFAULT
+func (p *ExchangeRefreshTokenResponse) GetRefreshToken() (v string) {
+	if !p.IsSetRefreshToken() {
+		return ExchangeRefreshTokenResponse_RefreshToken_DEFAULT
 	}
-	return *p.Valid
+	return *p.RefreshToken
 }
-func (p *VerifyRefreshTokenResponse) SetBase(val *rpcmodel.BaseResp) {
+func (p *ExchangeRefreshTokenResponse) SetBase(val *rpcmodel.BaseResp) {
 	p.Base = val
 }
-func (p *VerifyRefreshTokenResponse) SetValid(val *bool) {
-	p.Valid = val
+func (p *ExchangeRefreshTokenResponse) SetRefreshToken(val *string) {
+	p.RefreshToken = val
 }
 
-func (p *VerifyRefreshTokenResponse) IsSetBase() bool {
+func (p *ExchangeRefreshTokenResponse) IsSetBase() bool {
 	return p.Base != nil
 }
 
-func (p *VerifyRefreshTokenResponse) IsSetValid() bool {
-	return p.Valid != nil
+func (p *ExchangeRefreshTokenResponse) IsSetRefreshToken() bool {
+	return p.RefreshToken != nil
 }
 
-func (p *VerifyRefreshTokenResponse) String() string {
+func (p *ExchangeRefreshTokenResponse) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("VerifyRefreshTokenResponse(%+v)", *p)
+	return fmt.Sprintf("ExchangeRefreshTokenResponse(%+v)", *p)
 }
 
 type UserService interface {
@@ -644,5 +652,5 @@ type UserService interface {
 
 	BindMfa(ctx context.Context, req *BindMfaRequest) (r *BindMfaResponse, err error)
 
-	VerifyRefreshToken(ctx context.Context, req *VerifyRefreshTokenRequest) (r *VerifyRefreshTokenResponse, err error)
+	ExchangeRefreshToken(ctx context.Context, req *ExchangeRefreshTokenRequest) (r *ExchangeRefreshTokenResponse, err error)
 }

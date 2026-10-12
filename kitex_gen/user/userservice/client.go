@@ -18,7 +18,7 @@ type Client interface {
 	UpdateAvatar(ctx context.Context, req *user.UpdateAvatarRequest, callOptions ...callopt.Option) (r *user.UpdateAvatarResponse, err error)
 	GetMfaQRCode(ctx context.Context, req *user.GetMfaQRCodeRequest, callOptions ...callopt.Option) (r *user.GetMfaQRCodeResponse, err error)
 	BindMfa(ctx context.Context, req *user.BindMfaRequest, callOptions ...callopt.Option) (r *user.BindMfaResponse, err error)
-	VerifyRefreshToken(ctx context.Context, req *user.VerifyRefreshTokenRequest, callOptions ...callopt.Option) (r *user.VerifyRefreshTokenResponse, err error)
+	ExchangeRefreshToken(ctx context.Context, req *user.ExchangeRefreshTokenRequest, callOptions ...callopt.Option) (r *user.ExchangeRefreshTokenResponse, err error)
 }
 
 // NewClient creates a client for the service defined in IDL.
@@ -80,7 +80,7 @@ func (p *kUserServiceClient) BindMfa(ctx context.Context, req *user.BindMfaReque
 	return p.kClient.BindMfa(ctx, req)
 }
 
-func (p *kUserServiceClient) VerifyRefreshToken(ctx context.Context, req *user.VerifyRefreshTokenRequest, callOptions ...callopt.Option) (r *user.VerifyRefreshTokenResponse, err error) {
+func (p *kUserServiceClient) ExchangeRefreshToken(ctx context.Context, req *user.ExchangeRefreshTokenRequest, callOptions ...callopt.Option) (r *user.ExchangeRefreshTokenResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
-	return p.kClient.VerifyRefreshToken(ctx, req)
+	return p.kClient.ExchangeRefreshToken(ctx, req)
 }

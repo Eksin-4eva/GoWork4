@@ -98,6 +98,34 @@ check "密码错误被拒" '用户名或密码错误' \
 check "未带令牌被拒" '"code":"30001"' "$(curl -s "$BASE/user/info")"
 check "令牌非法被拒" '"code":"30001"' "$(curl -s "$BASE/user/info" -H "Authorization: not-a-token")"
 
+# ---- 刷新令牌换发（以前完全没覆盖的一条路径）----
+#
+# 只用刷新令牌访问受保护接口，会走「换发」分支：服务端校验旧的、吊销旧的、
+# 落库新的，然后把新令牌放进响应头。这条路径曾经是坏的——
+# 中间件会下发新刷新令牌却**不落库**，客户端替换本地存储之后，
+# 下次换发查不到记录，活跃用户会在访问令牌过期时被踢下线。
+rot_body=$(curl -s -D "$WORK/rotate.h" "$BASE/user/info" -H "Refresh-Token: $REFRESH")
+rot_headers=$(cat "$WORK/rotate.h")
+ROTATED=$(header_value "$rot_headers" refresh-token)
+ROTATED_ACCESS=$(header_value "$rot_headers" access-token)
+
+check "刷新令牌可单独换发" "\"username\":\"$USERNAME\"" "$rot_body"
+ok "换发时下发新的访问令牌" "$ROTATED_ACCESS"
+ok "换发时下发新的刷新令牌" "$ROTATED"
+ok "新旧刷新令牌不同" "$([[ -n "$ROTATED" && "$ROTATED" != "$REFRESH" ]] && echo yes)"
+
+# 关键断言：换发出来的令牌必须已经在库里。
+# 少了落库这一步，下面这次请求会在访问令牌过期后失败。
+check "换发后的刷新令牌可再次使用" '"code":"0"' \
+  "$(curl -s "$BASE/user/info" -H "Refresh-Token: $ROTATED")"
+# 旧令牌已经在上一次换发时被吊销，不能再用（防重放）。
+check "旧刷新令牌已失效" '"code":"30001"' \
+  "$(curl -s "$BASE/user/info" -H "Refresh-Token: $REFRESH")"
+# 用访问令牌通过时不换发刷新令牌：客户端不需要替换，它手里那个还在库里。
+plain_headers=$(curl -s -D - -o /dev/null "$BASE/user/info" -H "Authorization: $ACCESS")
+ok "访问令牌路径不下发新刷新令牌" \
+  "$([[ -z "$(header_value "$plain_headers" refresh-token)" ]] && echo yes)"
+
 info=$(curl -s "$BASE/user/info" -H "Authorization: $ACCESS")
 check "查自己信息" "\"username\":\"$USERNAME\"" "$info"
 USER_ID=$(json "d['data']['id']" <<<"$info")

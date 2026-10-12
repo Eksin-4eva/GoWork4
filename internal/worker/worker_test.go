@@ -3,8 +3,10 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
@@ -116,8 +118,12 @@ func TestConsumeVisitDeduplicatesRedelivery(t *testing.T) {
 
 	w := newWorker(database, c, nil, nil, stubExtractor{})
 
+	// 事件 ID 每次运行都不同：去重靠 Redis 的 SETNX + TTL，
+	// 用固定 ID 的话上一次运行留下的键会让第一次调用就被判成重复，
+	// 第二次跑本用例必然失败（这个坑真的踩过一次）。
+	eventID := fmt.Sprintf("evt-dedup-%d", time.Now().UnixNano())
 	payload, err := json.Marshal(event.VideoVisited{
-		V: constants.SchemaVersion, EventID: "evt-dedup-1", VideoID: testVideoID,
+		V: constants.SchemaVersion, EventID: eventID, VideoID: testVideoID,
 	})
 	if err != nil {
 		t.Fatalf("序列化事件失败: %v", err)

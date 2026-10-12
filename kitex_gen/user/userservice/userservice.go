@@ -56,10 +56,10 @@ var serviceMethods = map[string]kitex.MethodInfo{
 		false,
 		kitex.WithStreamingMode(kitex.StreamingNone),
 	),
-	"VerifyRefreshToken": kitex.NewMethodInfo(
-		verifyRefreshTokenHandler,
-		newUserServiceVerifyRefreshTokenArgs,
-		newUserServiceVerifyRefreshTokenResult,
+	"ExchangeRefreshToken": kitex.NewMethodInfo(
+		exchangeRefreshTokenHandler,
+		newUserServiceExchangeRefreshTokenArgs,
+		newUserServiceExchangeRefreshTokenResult,
 		false,
 		kitex.WithStreamingMode(kitex.StreamingNone),
 	),
@@ -237,22 +237,22 @@ func newUserServiceBindMfaResult() interface{} {
 	return user.NewUserServiceBindMfaResult()
 }
 
-func verifyRefreshTokenHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
-	realArg := arg.(*user.UserServiceVerifyRefreshTokenArgs)
-	realResult := result.(*user.UserServiceVerifyRefreshTokenResult)
-	success, err := handler.(user.UserService).VerifyRefreshToken(ctx, realArg.Req)
+func exchangeRefreshTokenHandler(ctx context.Context, handler interface{}, arg, result interface{}) error {
+	realArg := arg.(*user.UserServiceExchangeRefreshTokenArgs)
+	realResult := result.(*user.UserServiceExchangeRefreshTokenResult)
+	success, err := handler.(user.UserService).ExchangeRefreshToken(ctx, realArg.Req)
 	if err != nil {
 		return err
 	}
 	realResult.Success = success
 	return nil
 }
-func newUserServiceVerifyRefreshTokenArgs() interface{} {
-	return user.NewUserServiceVerifyRefreshTokenArgs()
+func newUserServiceExchangeRefreshTokenArgs() interface{} {
+	return user.NewUserServiceExchangeRefreshTokenArgs()
 }
 
-func newUserServiceVerifyRefreshTokenResult() interface{} {
-	return user.NewUserServiceVerifyRefreshTokenResult()
+func newUserServiceExchangeRefreshTokenResult() interface{} {
+	return user.NewUserServiceExchangeRefreshTokenResult()
 }
 
 type kClient struct {
@@ -325,11 +325,11 @@ func (p *kClient) BindMfa(ctx context.Context, req *user.BindMfaRequest) (r *use
 	return _result.GetSuccess(), nil
 }
 
-func (p *kClient) VerifyRefreshToken(ctx context.Context, req *user.VerifyRefreshTokenRequest) (r *user.VerifyRefreshTokenResponse, err error) {
-	var _args user.UserServiceVerifyRefreshTokenArgs
+func (p *kClient) ExchangeRefreshToken(ctx context.Context, req *user.ExchangeRefreshTokenRequest) (r *user.ExchangeRefreshTokenResponse, err error) {
+	var _args user.UserServiceExchangeRefreshTokenArgs
 	_args.Req = req
-	var _result user.UserServiceVerifyRefreshTokenResult
-	if err = p.c.Call(ctx, "VerifyRefreshToken", &_args, &_result); err != nil {
+	var _result user.UserServiceExchangeRefreshTokenResult
+	if err = p.c.Call(ctx, "ExchangeRefreshToken", &_args, &_result); err != nil {
 		return
 	}
 	return _result.GetSuccess(), nil

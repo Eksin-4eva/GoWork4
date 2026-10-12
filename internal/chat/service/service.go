@@ -11,16 +11,18 @@ import (
 	"gobili/pkg/constants"
 	"gobili/pkg/db"
 	"gobili/pkg/errno"
+	"gobili/pkg/refresh"
 	"gobili/pkg/token"
 	"gobili/pkg/utils"
 )
 
 // Service 是聊天服务的实现。
 type Service struct {
-	db       *db.Database
-	sf       *utils.Snowflake
-	hub      *hub
-	upgrader websocket.Upgrader
+	db        *db.Database
+	sf        *utils.Snowflake
+	hub       *hub
+	upgrader  websocket.Upgrader
+	exchanger refresh.Exchanger
 }
 
 // New 构造聊天服务。依赖取自进程级 ClientSet。
@@ -35,9 +37,10 @@ func New() *Service {
 // 聊天逻辑只需要数据库和雪花生成器，不该为了测试去连 Redis 和 MinIO。
 func newService(database *db.Database, sf *utils.Snowflake, allowedOrigins []string) *Service {
 	return &Service{
-		db:  database,
-		sf:  sf,
-		hub: newHub(),
+		db:        database,
+		sf:        sf,
+		hub:       newHub(),
+		exchanger: refresh.Exchanger{DB: database, SF: sf},
 		upgrader: websocket.Upgrader{
 			CheckOrigin: originChecker(allowedOrigins),
 		},
@@ -62,20 +65,25 @@ func (s *Service) authenticate(r *http.Request) (int64, map[string]string, error
 		return 0, nil, errno.AuthMissing
 	}
 
-	userID, err := token.ResolveUser(r.Context(), s.db.User, access, refresh)
+	// 与 HTTP 网关共用同一条令牌规则（pkg/token），但换发实现在本进程内完成——
+	// chat 自己连着数据库，不需要为此发一次 RPC。
+	userID, newRefresh, err := token.ResolveUser(r.Context(), s.exchanger, access, refresh)
 	if err != nil {
 		return 0, nil, err
 	}
 
-	// 与 HTTP 网关保持同一套规则：每次成功鉴权都轮换双令牌
-	newAccess, newRefresh, err := token.CreateAllToken(userID)
+	// 与 HTTP 网关保持同一套规则：换发新的访问令牌；
+	// 刷新令牌只在这次是靠它通过的时候才换发（换发时已经落库）。
+	newAccess, err := token.CreateToken(constants.TypeAccessToken, userID)
 	if err != nil {
 		return 0, nil, err
 	}
-	return userID, map[string]string{
-		constants.AccessTokenHeader:  newAccess,
-		constants.RefreshTokenHeader: newRefresh,
-	}, nil
+
+	tokens := map[string]string{constants.AccessTokenHeader: newAccess}
+	if newRefresh != "" {
+		tokens[constants.RefreshTokenHeader] = newRefresh
+	}
+	return userID, tokens, nil
 }
 
 // originChecker 按白名单校验握手的 Origin 请求头。

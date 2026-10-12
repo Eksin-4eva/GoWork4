@@ -17,7 +17,7 @@
 | 缓存 | Redis 7 | 热门榜（ZSet）、事件去重 |
 | 对象存储 | MinIO | 头像 / 视频 / 封面，库里存 object key |
 | 消息队列 | Kafka（KRaft） | 封面异步生成、播放计数聚合 |
-| 鉴权 | 双 Token（JWT HS256，带 jti） | Access 2h + Refresh 7d，每次请求轮换 |
+| 鉴权 | 双 Token（JWT HS256，带 jti） | Access 2h 每次请求换发；Refresh 7d 仅在用到时换发并落库 |
 | 视频抽帧 | ffmpeg | worker 生成封面 |
 
 ## 进程与数据流
@@ -78,7 +78,7 @@
 ├── cmd/              六个可执行入口：api / user / video / comment / chat / worker
 ├── config/           配置结构与示例；sql/init.sql 是全项目唯一的建表来源
 ├── docker/           Dockerfile 与 compose（mysql + redis + minio + kafka + api/chat/worker）
-├── hack/smoke.sh     端到端冒烟测试，40 条断言覆盖 15 个接口的正常与异常路径
+├── hack/smoke.sh     端到端冒烟测试，47 条断言覆盖 15 个接口的正常与异常路径
 ├── idl/              thrift 接口定义（api 是 HTTP 契约，其余是 RPC 契约）
 ├── kitex_gen/        Kitex 生成的 RPC 代码
 ├── internal/         业务实现：user / video / comment（微服务）/ chat / worker / event
@@ -115,7 +115,7 @@
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build
-bash hack/smoke.sh      # 40 条断言，全绿说明栈是通的
+bash hack/smoke.sh      # 47 条断言，全绿说明栈是通的
 ```
 
 会起 10 个容器：mysql、redis、minio、kafka、**etcd**、

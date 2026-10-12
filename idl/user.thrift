@@ -75,17 +75,26 @@ struct BindMfaResponse {
     1: required rpc_model.BaseResp base
 }
 
-// VerifyRefreshToken 给网关的鉴权中间件用。
+// ExchangeRefreshToken 给网关的鉴权中间件用：用旧的刷新令牌换发一个新的。
 //
-// 拆成微服务后网关不再直连数据库，所以「刷新令牌是否已被吊销」
-// 这个判断只能通过 RPC 问用户服务。
-struct VerifyRefreshTokenRequest {
+// **为什么不是「只校验」**：拆成微服务后网关不再直连数据库，
+// 它没有能力把换发出来的新令牌落库。如果这里只回答「有效 / 无效」，
+// 网关就只能下发一个「库里不存在的」刷新令牌——客户端替换本地存储之后，
+// 下次换发会查不到记录，用户被迫重新登录。
+//
+// 所以把「校验旧的 + 吊销旧的 + 落库新的」合并成一次调用：
+// 网关上依然只在**刷新令牌这条路径**花一次 RPC，
+// 用访问令牌通过的那条快路径一次网络都不发。
+struct ExchangeRefreshTokenRequest {
     1: required string token
+    // user_id 由网关从已验签的令牌中取出，省掉服务端再解析一次
+    2: required i64 user_id
 }
 
-struct VerifyRefreshTokenResponse {
+struct ExchangeRefreshTokenResponse {
     1: required rpc_model.BaseResp base
-    2: optional bool valid
+    // refresh_token 是换发后的刷新令牌，由网关注入响应头下发
+    2: optional string refresh_token
 }
 
 service UserService {
@@ -101,6 +110,6 @@ service UserService {
     GetMfaQRCodeResponse GetMfaQRCode(1: GetMfaQRCodeRequest req)
     // 绑定 MFA
     BindMfaResponse BindMfa(1: BindMfaRequest req)
-    // 校验刷新令牌是否仍然有效
-    VerifyRefreshTokenResponse VerifyRefreshToken(1: VerifyRefreshTokenRequest req)
+    // 换发刷新令牌：校验旧的、吊销旧的、落库新的，一次完成
+    ExchangeRefreshTokenResponse ExchangeRefreshToken(1: ExchangeRefreshTokenRequest req)
 }

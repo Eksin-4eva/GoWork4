@@ -482,78 +482,78 @@ func (p *UserServiceBindMfaResult) GetResult() interface{} {
 	return p.Success
 }
 
-type UserServiceVerifyRefreshTokenArgs struct {
-	Req *VerifyRefreshTokenRequest `thrift:"req,1" frugal:"1,default,VerifyRefreshTokenRequest" json:"req"`
+type UserServiceExchangeRefreshTokenArgs struct {
+	Req *ExchangeRefreshTokenRequest `thrift:"req,1" frugal:"1,default,ExchangeRefreshTokenRequest" json:"req"`
 }
 
-func NewUserServiceVerifyRefreshTokenArgs() *UserServiceVerifyRefreshTokenArgs {
-	return &UserServiceVerifyRefreshTokenArgs{}
+func NewUserServiceExchangeRefreshTokenArgs() *UserServiceExchangeRefreshTokenArgs {
+	return &UserServiceExchangeRefreshTokenArgs{}
 }
 
-func (p *UserServiceVerifyRefreshTokenArgs) InitDefault() {
+func (p *UserServiceExchangeRefreshTokenArgs) InitDefault() {
 }
 
-var UserServiceVerifyRefreshTokenArgs_Req_DEFAULT *VerifyRefreshTokenRequest
+var UserServiceExchangeRefreshTokenArgs_Req_DEFAULT *ExchangeRefreshTokenRequest
 
-func (p *UserServiceVerifyRefreshTokenArgs) GetReq() (v *VerifyRefreshTokenRequest) {
+func (p *UserServiceExchangeRefreshTokenArgs) GetReq() (v *ExchangeRefreshTokenRequest) {
 	if !p.IsSetReq() {
-		return UserServiceVerifyRefreshTokenArgs_Req_DEFAULT
+		return UserServiceExchangeRefreshTokenArgs_Req_DEFAULT
 	}
 	return p.Req
 }
-func (p *UserServiceVerifyRefreshTokenArgs) SetReq(val *VerifyRefreshTokenRequest) {
+func (p *UserServiceExchangeRefreshTokenArgs) SetReq(val *ExchangeRefreshTokenRequest) {
 	p.Req = val
 }
 
-func (p *UserServiceVerifyRefreshTokenArgs) IsSetReq() bool {
+func (p *UserServiceExchangeRefreshTokenArgs) IsSetReq() bool {
 	return p.Req != nil
 }
 
-func (p *UserServiceVerifyRefreshTokenArgs) String() string {
+func (p *UserServiceExchangeRefreshTokenArgs) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("UserServiceVerifyRefreshTokenArgs(%+v)", *p)
+	return fmt.Sprintf("UserServiceExchangeRefreshTokenArgs(%+v)", *p)
 }
 
-func (p *UserServiceVerifyRefreshTokenArgs) GetFirstArgument() interface{} {
+func (p *UserServiceExchangeRefreshTokenArgs) GetFirstArgument() interface{} {
 	return p.Req
 }
 
-type UserServiceVerifyRefreshTokenResult struct {
-	Success *VerifyRefreshTokenResponse `thrift:"success,0,optional" frugal:"0,optional,VerifyRefreshTokenResponse" json:"success,omitempty"`
+type UserServiceExchangeRefreshTokenResult struct {
+	Success *ExchangeRefreshTokenResponse `thrift:"success,0,optional" frugal:"0,optional,ExchangeRefreshTokenResponse" json:"success,omitempty"`
 }
 
-func NewUserServiceVerifyRefreshTokenResult() *UserServiceVerifyRefreshTokenResult {
-	return &UserServiceVerifyRefreshTokenResult{}
+func NewUserServiceExchangeRefreshTokenResult() *UserServiceExchangeRefreshTokenResult {
+	return &UserServiceExchangeRefreshTokenResult{}
 }
 
-func (p *UserServiceVerifyRefreshTokenResult) InitDefault() {
+func (p *UserServiceExchangeRefreshTokenResult) InitDefault() {
 }
 
-var UserServiceVerifyRefreshTokenResult_Success_DEFAULT *VerifyRefreshTokenResponse
+var UserServiceExchangeRefreshTokenResult_Success_DEFAULT *ExchangeRefreshTokenResponse
 
-func (p *UserServiceVerifyRefreshTokenResult) GetSuccess() (v *VerifyRefreshTokenResponse) {
+func (p *UserServiceExchangeRefreshTokenResult) GetSuccess() (v *ExchangeRefreshTokenResponse) {
 	if !p.IsSetSuccess() {
-		return UserServiceVerifyRefreshTokenResult_Success_DEFAULT
+		return UserServiceExchangeRefreshTokenResult_Success_DEFAULT
 	}
 	return p.Success
 }
-func (p *UserServiceVerifyRefreshTokenResult) SetSuccess(x interface{}) {
-	p.Success = x.(*VerifyRefreshTokenResponse)
+func (p *UserServiceExchangeRefreshTokenResult) SetSuccess(x interface{}) {
+	p.Success = x.(*ExchangeRefreshTokenResponse)
 }
 
-func (p *UserServiceVerifyRefreshTokenResult) IsSetSuccess() bool {
+func (p *UserServiceExchangeRefreshTokenResult) IsSetSuccess() bool {
 	return p.Success != nil
 }
 
-func (p *UserServiceVerifyRefreshTokenResult) String() string {
+func (p *UserServiceExchangeRefreshTokenResult) String() string {
 	if p == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("UserServiceVerifyRefreshTokenResult(%+v)", *p)
+	return fmt.Sprintf("UserServiceExchangeRefreshTokenResult(%+v)", *p)
 }
 
-func (p *UserServiceVerifyRefreshTokenResult) GetResult() interface{} {
+func (p *UserServiceExchangeRefreshTokenResult) GetResult() interface{} {
 	return p.Success
 }

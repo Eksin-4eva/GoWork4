@@ -81,17 +81,28 @@ func BindMfa(ctx context.Context, req *user.BindMfaRequest) error {
 	return rpcbase.Check(resp.Base)
 }
 
-// VerifyRefreshToken 调用用户服务校验刷新令牌。
+// ExchangeRefreshToken 调用用户服务换发一个新的刷新令牌。
 //
-// 网关的鉴权中间件靠它判断「这个刷新令牌被吊销了没有」。
-func VerifyRefreshToken(ctx context.Context, token string) (bool, error) {
-	resp, err := userClient.VerifyRefreshToken(ctx, &user.VerifyRefreshTokenRequest{Token: token})
+// 一次调用同时完成「校验旧的、吊销旧的、落库新的」：
+// 网关没有数据库连接，没法自己落库，所以不能把换发拆成两次 RPC。
+// 它只在访问令牌失效时才会被调用，用访问令牌通过的那条快路径不受影响。
+func ExchangeRefreshToken(ctx context.Context, userID int64, old string) (string, error) {
+	resp, err := userClient.ExchangeRefreshToken(ctx, &user.ExchangeRefreshTokenRequest{
+		Token:  old,
+		UserId: userID,
+	})
 	if err != nil {
-		logger.Errorf("rpc.VerifyRefreshToken: %v", err)
-		return false, errno.InternalError
+		logger.Errorf("rpc.ExchangeRefreshToken: %v", err)
+		return "", errno.InternalError
 	}
 	if err := rpcbase.Check(resp.Base); err != nil {
-		return false, err
+		return "", err
 	}
-	return resp.Valid != nil && *resp.Valid, nil
+	if resp.RefreshToken == nil || *resp.RefreshToken == "" {
+		// 声称成功却没给新令牌，属于协议违约，按内部错误处理，
+		// 不能让网关把空值写进响应头。
+		logger.Errorf("rpc.ExchangeRefreshToken: 响应缺少 refresh_token")
+		return "", errno.InternalError
+	}
+	return *resp.RefreshToken, nil
 }

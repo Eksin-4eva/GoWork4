@@ -30,16 +30,27 @@ type Claims struct {
 
 // CreateToken 按类型签发一个令牌。
 func CreateToken(tokenType int64, userID int64) (string, error) {
+	raw, _, err := CreateTokenWithExpiry(tokenType, userID)
+	return raw, err
+}
+
+// CreateTokenWithExpiry 签发令牌，并同时返回它的过期时间。
+//
+// 换发刷新令牌时要把过期时间一起落库，所以需要这个变体。
+// 过期时间必须与签名时用的 TTL 完全一致——让调用方自己再算一遍，
+// 迟早会因为两处配置读取时机不同而漂移。
+func CreateTokenWithExpiry(tokenType int64, userID int64) (string, time.Time, error) {
 	secret, ttl, err := secretAndTTL(tokenType)
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 
 	now := time.Now()
 	jti, err := newJti()
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
+	expiresAt := now.Add(ttl)
 
 	claims := Claims{
 		UserID: userID,
@@ -48,16 +59,16 @@ func CreateToken(tokenType int64, userID int64) (string, error) {
 			ID:        jti,
 			Issuer:    constants.JWTIssuer,
 			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
 		},
 	}
 
 	signed, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 	if err != nil {
 		logger.Errorf("token.CreateToken: %v", err)
-		return "", errno.InternalError
+		return "", time.Time{}, errno.InternalError
 	}
-	return signed, nil
+	return signed, expiresAt, nil
 }
 
 // newJti 生成令牌的唯一标识。
