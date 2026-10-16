@@ -48,6 +48,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", svc.HandleWebSocket)
 	mux.HandleFunc("/history", svc.HandleHistory)
+	mux.HandleFunc("/conversations", svc.HandleConversations)
 	mux.HandleFunc("/healthz", svc.HandleHealth)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Chat.Host, cfg.Chat.Port)

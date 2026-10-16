@@ -122,6 +122,7 @@ func TestChatDeliversAndPersistsMessage(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", svc.HandleWebSocket)
 	mux.HandleFunc("/history", svc.HandleHistory)
+	mux.HandleFunc("/conversations", svc.HandleConversations)
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
@@ -300,6 +301,83 @@ func fetchHistory(t *testing.T, serverURL string, viewer, peer int64) historyRes
 	var body historyResponse
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("解析历史响应失败: %v", err)
+	}
+	return body
+}
+
+
+func TestChatListsConversations(t *testing.T) {
+	svc, gormDB := setupService(t)
+	sender, receiver := seedUsers(t, gormDB)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", svc.HandleWebSocket)
+	mux.HandleFunc("/conversations", svc.HandleConversations)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	connA := dial(t, server.URL, sender)
+	defer func() { _ = connA.Close() }()
+	connB := dial(t, server.URL, receiver)
+	defer func() { _ = connB.Close() }()
+
+	if err := connA.WriteJSON(incomingMessage{ToUserID: "1002", Content: "第一句"}); err != nil {
+		t.Fatalf("发送消息失败: %v", err)
+	}
+	_ = readMessage(t, connB)
+	_ = readMessage(t, connA)
+
+	if err := connB.WriteJSON(incomingMessage{ToUserID: "1001", Content: "最新一句"}); err != nil {
+		t.Fatalf("回复消息失败: %v", err)
+	}
+	_ = readMessage(t, connA)
+	_ = readMessage(t, connB)
+
+	got := fetchConversations(t, server.URL, receiver)
+	if got.Data.Total != 1 || len(got.Data.Items) != 1 {
+		t.Fatalf("会话列表数量不对: %+v", got)
+	}
+	item := got.Data.Items[0]
+	if item.PeerID != "1001" {
+		t.Fatalf("peer_id 应为对方 1001，实际 %q", item.PeerID)
+	}
+	if item.LastContent != "最新一句" {
+		t.Fatalf("应展示最新消息，实际 %+v", item)
+	}
+}
+
+type conversationsResponse struct {
+	Code string `json:"code"`
+	Data struct {
+		Items []conversationItem `json:"items"`
+		Total int64             `json:"total"`
+	} `json:"data"`
+}
+
+func fetchConversations(t *testing.T, serverURL string, viewer int64) conversationsResponse {
+	t.Helper()
+
+	access, _, err := token.CreateAllToken(viewer)
+	if err != nil {
+		t.Fatalf("签发令牌失败: %v", err)
+	}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		serverURL+"/conversations", nil)
+	if err != nil {
+		t.Fatalf("构造请求失败: %v", err)
+	}
+	req.Header.Set(constants.AuthHeader, access)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("请求会话列表失败: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	var body conversationsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("解析会话列表失败: %v", err)
 	}
 	return body
 }
